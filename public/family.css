@@ -1,0 +1,152 @@
+/* family.css: the pieces the open-source and hosted app adds to the desk: "Who's writing?" (first run), writers'
+   colours on the shelf, sharing a book, the printing press resting, the grown-up gate and the passcode's Open key.
+   Theme tokens only (CONTRACT tokens), so all three themes carry them. */
+
+/* ---------- passcode: the spare key opens when the passcode length isn't known ---------- */
+.pad button.ok { --blk: var(--accent-3); background: color-mix(in srgb, var(--accent-3) 30%, var(--surface)); }
+.pad button.ok svg { font-size: 32px; }
+.clasp { gap: 6px; justify-content: center; }
+.cover-frame { container-type: inline-size; }
+.cover-word { font-size: min(54px, 18cqi); max-width: 100%; } /* the name, whatever it is, fits the cover at every size */
+.clasp i { flex: none; }
+
+.code-form { display: flex; gap: 10px; width: min(340px, 80vw); }
+.code-form input { flex: 1; min-width: 0; height: 64px; padding: 0 18px; border: 0; border-radius: 14px; background: var(--surface); color: var(--ink); font-size: 24px; box-shadow: 0 6px 0 var(--accent-3); }
+.code-form input:focus { outline: none; box-shadow: 0 6px 0 var(--accent); }
+.code-form .btn { min-height: 64px; }
+
+/* ---------- who's writing? ---------- */
+.writers { align-items: center; justify-content: center; padding: 24px var(--gutter); overflow-y: auto; }
+.wf-card {
+  width: min(640px, 100%); padding: 40px 44px 36px; border-radius: var(--radius-lg);
+  background: var(--surface); box-shadow: var(--shadow-lg);
+  display: flex; flex-direction: column; gap: 18px;
+}
+.wf-title { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(38px, 5vw, 56px); line-height: 1; letter-spacing: -0.02em; }
+.wf-sub { margin: -6px 0 4px; font-size: 18px; color: var(--ink-soft); }
+.wf-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 12px; }
+.wf-list:empty { display: none; }
+.wf-writer {
+  position: relative; height: 54px; padding: 0 8px 0 36px; display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--font-display); font-size: 21px;
+  background: color-mix(in srgb, var(--tag) 30%, var(--surface));
+  clip-path: polygon(18px 0, 100% 0, 100% 100%, 18px 100%, 0 50%);
+}
+.wf-writer::before { content: ""; position: absolute; left: 17px; top: 50%; width: 11px; height: 11px; margin-top: -5.5px; border-radius: 50%; background: var(--tag); }
+.wf-rm { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 16px; color: var(--ink-soft); }
+.wf-rm:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); color: var(--ink); }
+.wf-form { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px; border-radius: var(--radius); background: var(--surface-2); }
+.wf-form input {
+  flex: 1 1 200px; min-width: 0; height: 52px; padding: 0 16px; border: 0; border-radius: calc(var(--radius) - 2px);
+  background: var(--surface); font-family: var(--font-display); font-size: 22px; color: var(--ink);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ink) 12%, transparent);
+}
+.wf-form input:focus { outline: none; box-shadow: inset 0 0 0 3px var(--accent); }
+.wf-swatches { order: 3; flex: 1 1 100%; display: flex; gap: 8px; }
+.swatch {
+  width: 36px; height: 36px; border-radius: 50%; background: var(--sw);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, #000 12%, transparent);
+  transition: transform .2s var(--settle);
+}
+.swatch.on { transform: scale(1.12); box-shadow: 0 0 0 3px var(--surface-2), 0 0 0 6px var(--sw); }
+.wf-done { align-self: flex-end; margin-top: 4px; }
+.wf-done:disabled { opacity: .45; pointer-events: none; }
+.wf-done svg { order: 2; }
+
+/* ---------- writers' own colours on the bookcase and the desk ---------- */
+.tag[data-author] { background: color-mix(in srgb, var(--tag, var(--surface)) 30%, var(--surface)); }
+.tag[data-author]::before { background: var(--tag); width: 11px; height: 11px; margin-top: -5.5px; }
+.tag[data-author].on { background: color-mix(in srgb, var(--tag) 62%, var(--surface)); }
+.name-tag { box-shadow: inset 4px 0 0 var(--tag, transparent), var(--shadow); }
+
+/* ---------- grown-ups corner ---------- */
+.gp-links { display: flex; flex-wrap: wrap; gap: 4px 16px; padding-top: 4px; }
+.gp-link { min-height: 36px; padding: 0; font-size: 15px; color: var(--ink); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, var(--ink) 35%, transparent); }
+.gp-link:hover { text-decoration-color: var(--accent); }
+.gp-link[hidden] { display: none; }
+
+/* ---------- hosted: one monthly price, so no per-book cost lines ---------- */
+#app.hosted .bk-cost, #app.hosted .rd-cost { display: none !important; }
+
+/* ---------- the desk's right end: share, then whose book it is ---------- */
+.desk-end { justify-self: end; display: flex; align-items: flex-start; gap: 12px; }
+.share-btn { margin-top: 10px; height: 44px; font-size: 17px; }
+.share-btn svg { font-size: 20px; }
+.share-btn.on { box-shadow: inset 0 0 0 3px var(--accent-3), var(--shadow); }
+#app[data-step="read"] .desk-end { margin-left: auto; }
+#app[data-step="read"] .desk-end .name-tag { display: none; }
+#app[data-step="read"] .share-btn { box-shadow: 0 2px 10px -3px rgba(0, 0, 0, .3); }
+@media (max-width: 760px) {
+  .share-btn { width: 44px; padding: 0; justify-content: center; }
+  .share-btn span { display: none; }
+  #app[data-screen="desk"]:not([data-step="read"]) .desk-end { margin-right: 54px; } /* the helper chip sits at the right */
+}
+
+/* ---------- share sheet ---------- */
+dialog.share, dialog.gate { padding: 0; border: 0; background: none; color: var(--ink); max-width: calc(100vw - 24px); }
+dialog.share::backdrop, dialog.gate::backdrop { background: color-mix(in srgb, var(--ink) 40%, transparent); }
+.share-card, .gate-form {
+  position: relative; width: min(480px, calc(100vw - 24px)); padding: 30px 30px 26px; border-radius: var(--radius-lg);
+  background: var(--surface); box-shadow: var(--shadow-lg); font-family: var(--font-body);
+  display: flex; flex-direction: column; gap: 14px;
+}
+.share-card .x { position: absolute; right: 12px; top: 12px; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; }
+.share-card .x:hover { background: var(--surface-2); }
+.share-h, .gate-h { margin: 0; padding-right: 40px; font-family: var(--font-display); font-weight: 400; font-size: 32px; line-height: 1.05; }
+.share-title { margin: -6px 0 0; font-family: var(--font-display); font-size: 19px; color: var(--ink-soft); }
+.share-title:empty { display: none; }
+.share-p, .gate-why { margin: 0; font-size: 17px; line-height: 1.45; }
+#share-off, #share-on { display: flex; flex-direction: column; gap: 14px; }
+#share-off[hidden], #share-on[hidden] { display: none; }
+#share-off .btn { align-self: flex-start; }
+.share-row { display: flex; align-items: center; gap: 10px; font-size: 16px; min-height: 36px; }
+.share-row input { flex: none; width: 22px; height: 22px; accent-color: var(--accent); }
+.share-row.consent { align-items: flex-start; padding: 12px 14px; border-radius: var(--radius); background: var(--surface-2); line-height: 1.4; }
+.share-row.consent input { margin-top: 1px; }
+.share-err { margin: 0; color: color-mix(in srgb, #c0392b 80%, var(--ink)); font-size: 15px; }
+.share-p.small { font-size: 15px; color: var(--ink-soft); }
+#share-make:disabled { opacity: .45; }
+.share-linkrow { display: flex; gap: 8px; }
+.share-linkrow input {
+  flex: 1; min-width: 0; height: 46px; padding: 0 12px; border: 0; border-radius: var(--radius);
+  background: var(--surface-2); font-size: 15px; color: var(--ink);
+}
+#share-copy.done { background: var(--accent-3); }
+#share-send { align-self: flex-start; }
+.share-stop { align-self: flex-start; min-height: 36px; font-size: 15px; color: var(--ink-soft); text-decoration: underline; text-underline-offset: 3px; }
+.share-stop:hover { color: var(--ink); }
+
+/* ---------- the grown-up gate (hosted: parent password again) ---------- */
+.gate-field { display: flex; flex-direction: column; gap: 6px; font-size: 15px; font-weight: 700; }
+.gate-field input { height: 50px; padding: 0 14px; border: 0; border-radius: var(--radius); background: var(--surface-2); font-size: 18px; font-weight: 400; color: var(--ink); }
+.gate-field input:focus { outline: 3px solid var(--accent); outline-offset: 0; }
+.gate-err { margin: -4px 0 0; color: color-mix(in srgb, #c0392b 80%, var(--ink)); font-size: 15px; }
+.gate-act { display: flex; justify-content: flex-end; gap: 10px; }
+.gate-btn { min-height: 46px; padding: 0 18px; border-radius: var(--radius); font-size: 16px; font-weight: 700; background: var(--surface-2); color: var(--ink); }
+.gate-btn.primary { background: var(--accent); color: var(--on-accent); }
+.gate-btn:disabled { opacity: .6; }
+
+/* ---------- the printing press is resting ---------- */
+.press-note {
+  position: fixed; z-index: 30; left: 50%; bottom: 16px; transform: translateX(-50%);
+  width: min(620px, calc(100vw - 32px)); padding: 14px 18px; border-radius: var(--radius);
+  display: flex; align-items: center; gap: 14px;
+  background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); font-size: 16px; line-height: 1.4;
+}
+.press-note b { font-family: var(--font-display); font-weight: 400; font-size: 19px; }
+.press-ico { flex: none; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-size: 26px; background: color-mix(in srgb, var(--accent-2) 45%, var(--surface)); }
+.press-ico svg { stroke-width: 1.8; }
+.press-note .x { flex: none; align-self: flex-start; width: 40px; height: 40px; margin: -6px -8px -6px auto; border-radius: 50%; display: grid; place-items: center; font-size: 18px; color: var(--ink-soft); }
+.press-note .x:hover { background: var(--surface-2); color: var(--ink); }
+#app[data-screen="lock"] .press-note, #app[data-screen="boot"] .press-note, #app[data-screen="writers"] .press-note { display: none; }
+#app[data-screen="desk"] .press-note { bottom: auto; top: calc(var(--top-h) + 6px); }
+#app[data-screen="desk"][data-step="read"] .press-note { top: auto; bottom: 86px; }
+@media (max-width: 760px) {
+  .wf-card { padding: 28px 22px 24px; }
+  .wf-swatches { justify-content: space-between; }
+  .wf-form .btn { flex: 1; }
+  .wf-done { align-self: stretch; }
+  .press-note { font-size: 15px; }
+  #app[data-screen="shelf"] .press-note { bottom: 64px; }
+}
+@media (prefers-reduced-motion: reduce) { .swatch { transition: none; } }

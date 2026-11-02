@@ -1,0 +1,95 @@
+/* Paper Cut Forest
+   Layered paper craft: pale moss card stock, crisp cut corners, sheets stacked with real paper
+   shadows, pine-green buttons, a fox-orange and a mustard accent, and a cut-paper forest with toadstools at the foot.
+   Display: Bagel Fat One (fat, cut-out letters). Body: Atkinson Hyperlegible (designed for legibility).
+   Contrast (WCAG): ink/surface 12.4, ink-soft/surface 7.1, ink/bg 10.0, ink-soft/bg 5.7.
+   Text on any accent uses --on-accent: accent 5.1, accent-2 7.9, accent-3 6.9 (all AA or better).
+   Note: --shadow and --shadow-lg stack two paper sheets under the card, so give cards some bottom margin.
+   Extras: put class `theme-paper-cut-forest` on <html> or <body> for the layered paper forest along
+   the bottom (behind content, z-index -1, swaying gently) and a paper-fibre texture over everything. */
+@import url("https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bagel+Fat+One&display=swap");
+
+:root {
+  color-scheme: light;
+  font-synthesis: none; /* single-weight display faces stay real, never faux-bold */
+
+  --bg: #dbe8d1;
+  --bg-2: #b7d2a8;
+  --surface: #fdfcf6;
+  --surface-2: #eef3e5;
+  --ink: #16392b;
+  --ink-soft: #3f5d4b;
+
+  --accent: #f2804a;    /* fox */
+  --accent-2: #f4c04a;  /* mustard */
+  --accent-3: #8fca72;  /* leaf */
+  --on-accent: #14352a;
+
+  --font-display: "Bagel Fat One", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --font-body: "Atkinson Hyperlegible", "Avenir Next", system-ui, sans-serif;
+
+  --radius: 8px;
+  --radius-lg: 16px;
+  --shadow: 0 1px 1px rgba(22, 57, 43, .12), 0 4px 0 -1px #c4dbb6, 0 7px 0 -2px #93ba85, 0 12px 16px -8px rgba(22, 57, 43, .35);
+  --shadow-lg: 0 1px 2px rgba(22, 57, 43, .14), 0 6px 0 -2px #c4dbb6, 0 11px 0 -4px #93ba85, 0 16px 0 -6px #6a9b67, 0 26px 30px -14px rgba(22, 57, 43, .45);
+
+  --ease-bounce: cubic-bezier(.3, 1.6, .6, 1);
+  --motion-scale: .9;
+
+  --pattern: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320'>\
+<defs>\
+<filter id='s' x='-30%' y='-30%' width='160%' height='170%'><feDropShadow dx='0' dy='2' stdDeviation='1.2' flood-color='%2316392b' flood-opacity='.22'/></filter>\
+<filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.04 .9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .1  0 0 0 0 .25  0 0 0 0 .15  0 0 0 .1 0'/></filter>\
+</defs>\
+<rect width='320' height='320' filter='url(%23n)'/>\
+<g filter='url(%23s)' fill='%23c6dcb8'>\
+<path d='M64 34c20 8 24 32 0 50-24-18-20-42 0-50z'/>\
+<path d='M236 178l22 42h-44z'/><path d='M236 160l17 30h-34z'/>\
+<path d='M218 58c16 4 22 22 6 36-18-6-20-26-6-36z'/>\
+<path d='M120 250c14 4 18 20 4 30-14-8-16-22-4-30z'/>\
+</g>\
+<circle cx='150' cy='130' r='6' fill='%23f4b73a' filter='url(%23s)'/>\
+<circle cx='30' cy='220' r='5' fill='%23ea6c32' filter='url(%23s)'/>\
+</svg>");
+}
+
+/* ---- optional extras ---- */
+.theme-paper-cut-forest::before {
+  content: "";
+  position: fixed;
+  left: -40px;
+  right: -40px;
+  bottom: -10px;
+  height: 34vh;
+  z-index: -1;
+  pointer-events: none;
+  transform-origin: 50% 100%;
+  background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='1400' height='300' viewBox='0 0 1400 300'>\
+<defs><filter id='d' x='-5%' y='-30%' width='110%' height='160%'><feDropShadow dx='0' dy='-4' stdDeviation='4' flood-color='%2316392b' flood-opacity='.28'/></filter></defs>\
+<g filter='url(%23d)' fill='%23c4dbb6'><path d='M0 140C160 90 320 120 470 136S760 80 940 116 1240 100 1400 140V300H0z'/>\
+<path d='M300 128l24-62 24 62zM330 124l18-44 18 44zM1050 112l22-58 22 58z'/></g>\
+<g filter='url(%23d)' fill='%2393ba85'><path d='M0 196C220 150 400 192 620 172S1040 150 1400 196V300H0z'/>\
+<path d='M120 186l30-84 30 84zM164 182l22-60 22 60zM760 170l30-86 30 86zM804 168l22-62 22 62zM1220 182l26-74 26 74z'/></g>\
+<g filter='url(%23d)' fill='%236a9b67'><path d='M0 252C260 220 470 262 700 240S1100 222 1400 252V300H0z'/>\
+<path d='M470 250l34-96 34 96zM520 248l24-66 24 66zM1080 236l30-84 30 84z'/></g>\
+<g filter='url(%23d)' transform='translate(960 262)'><path d='M-6 0h12l2-24h-16z' fill='%23fdfcf6'/><path d='M-26-22a26 19 0 0 1 52 0z' fill='%23f2804a'/><circle cx='-11' cy='-30' r='3.5' fill='%23fdfcf6'/><circle cx='5' cy='-35' r='3' fill='%23fdfcf6'/><circle cx='15' cy='-26' r='2.5' fill='%23fdfcf6'/></g><g filter='url(%23d)' transform='translate(1006 270) scale(.65)'><path d='M-6 0h12l2-24h-16z' fill='%23fdfcf6'/><path d='M-26-22a26 19 0 0 1 52 0z' fill='%23f2804a'/><circle cx='-8' cy='-30' r='3.5' fill='%23fdfcf6'/><circle cx='9' cy='-31' r='3' fill='%23fdfcf6'/></g>\
+</svg>") repeat-x left bottom / auto 100%;
+  animation: pcf-sway calc(9s / max(var(--motion-scale), .2)) ease-in-out infinite alternate;
+}
+.theme-paper-cut-forest::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  opacity: .4;
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.03 .8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .2  0 0 0 0 .3  0 0 0 0 .2  0 0 0 .12 0'/></filter><rect width='240' height='240' filter='url(%23n)'/></svg>");
+}
+@keyframes pcf-sway {
+  from { transform: translateX(calc(-6px * var(--motion-scale))) skewX(calc(-.6deg * var(--motion-scale))); }
+  to   { transform: translateX(calc(6px * var(--motion-scale))) skewX(calc(.6deg * var(--motion-scale))); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-paper-cut-forest::before { animation: none; }
+}

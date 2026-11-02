@@ -1,0 +1,62 @@
+# Copy to wrangler.hosted.local.toml and fill in YOUR resources. Never commit the local file.
+name = "YOUR_HOSTED_WORKER"
+main = "src/worker.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+rules = [{ type = "Text", globs = ["**/*.md"], fallthrough = true }]
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
+html_handling = "auto-trailing-slash"
+[vars]
+MODE = "hosted"
+HOSTED_ALLOWED_COUNTRY = "US"
+HOSTED_MAX_ACCOUNTS = "10"
+HOSTED_OPEN = "true"
+HOSTED_PAUSE = "false"
+HOSTED_TTS_PAUSE = "false"
+# Set true only if your provider charges a flat subscription fee, then explicitly configure USD tariffs.
+PROVIDER_FLAT_RATE = "false"
+STRIPE_MODE = "test"
+STRIPE_PRICE_ID = "REPLACE_WITH_TEST_MONTHLY_PRICE_ID"
+TEXT_BASE_URL = "https://api.openai.com/v1"
+TEXT_MODEL = "gpt-4.1-mini"
+VISION_MODEL = "gpt-4.1-mini"
+IMAGE_BASE_URL = "https://api.openai.com/v1"
+IMAGE_MODEL = "gpt-image-2.5-sunburst"
+IMAGE_QUALITY = "medium"
+OPENAI_TTS_MODEL = "tts-1"
+OPENAI_TTS_VOICE = "coral"
+TTS_MODEL = "eleven_v4_turbo"
+HOSTED_MONTHLY_IMAGES = "120"
+HOSTED_MONTHLY_TOKENS = "1000000"
+HOSTED_MONTHLY_TTS_CHARACTERS = "50000"
+HOSTED_MONTHLY_ALLOWANCE_USD = "2.25" # Hub-backed launch reserve; review on provider migration.
+HOSTED_GLOBAL_DAILY_IMAGES = "100"
+HOSTED_GLOBAL_DAILY_TOKENS = "1000000"
+[[d1_databases]]
+binding = "DB"
+database_name = "YOUR_HOSTED_DATABASE"
+database_id = "REPLACE_WITH_HOSTED_D1_ID"
+migrations_dir = "migrations"
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "YOUR_HOSTED_MEDIA_BUCKET"
+[images]
+binding = "IMAGES"
+[ai]
+binding = "AI"
+[[queues.producers]]
+binding = "PAINT"
+queue = "YOUR_HOSTED_PAINT_QUEUE"
+[[queues.consumers]]
+queue = "YOUR_HOSTED_PAINT_QUEUE"
+max_batch_size = 1
+max_batch_timeout = 1
+max_concurrency = 5
+max_retries = 3
+[observability]
+enabled = true
+[triggers]
+crons = ["0 9 * * *"]

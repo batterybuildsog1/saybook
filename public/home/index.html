@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Say a book</title>
+<meta name="description" content="Your kid tells a story out loud and it becomes an illustrated picture book, read back in a storyteller's voice, that they can send to friends. $19.50 a month, or free and open source to run yourself.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="image" href="/home/img/talk-1920.webp" imagesrcset="/home/img/talk-1100.webp 1100w, /home/img/talk-1920.webp 1920w" imagesizes="100vw">
+<link rel="stylesheet" href="/home/home.css">
+</head>
+<body>
+
+<!-- 1. The title page, over the room where the story is told -->
+<header class="hero" id="top">
+  <img class="hero-room" src="/home/img/talk-1920.webp" srcset="/home/img/talk-1100.webp 1100w, /home/img/talk-1920.webp 1920w" sizes="100vw" alt="A child sitting on a bedroom rug at night, talking, as pages of a story float out of the open window toward the moon over a pond">
+  <div class="title-card">
+    <h1 class="t-spread" aria-label="Say a book"><span>Say</span><span>a</span><span>book</span></h1>
+    <p class="facts">Your kid tells a story out loud.<br>It becomes a picture book.<br>They send it to friends.</p>
+    <p class="support">Real pages, painted pictures, read back in a storyteller’s voice. Every word stays theirs.</p>
+    <div class="card-foot">
+      <span class="imprint" data-app-name></span>
+      <a class="btn" href="/signin/?new=1" data-start>Start for $19.50 a month</a>
+      <a class="card-link" href="/signin/" data-signin>Sign in</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- Launch video slot: add the approved video here when it is ready. No embed loads at launch. -->
+  <div id="launch-video" hidden></div>
+  <!-- 2. How it works, printed as the slip that comes with the book -->
+  <section class="how" aria-labelledby="how-h">
+    <div class="how-words rise">
+      <h2 id="how-h">From talk to book</h2>
+      <p>Nothing to learn. They talk or type and keep going. The book forms around them, a part at a time, while they write.</p>
+      <p class="soft">Timings from our tests. Pictures take longer when lots of families are writing; they keep painting if the tab closes.</p>
+    </div>
+    <div class="slip rise" role="table" aria-label="What happens, and when">
+      <div class="slip-group rise" role="rowgroup">
+        <p class="slip-h" role="row"><span role="columnheader">While they talk</span></p>
+        <p class="slip-row" role="row"><span role="cell">Their words appear as they speak</span><i aria-hidden="true"></i><span role="cell">at once</span></p>
+        <p class="slip-row" role="row"><span role="cell">Every word stays exactly theirs</span><i aria-hidden="true"></i><span role="cell">always</span></p>
+      </div>
+      <div class="slip-group rise" role="rowgroup">
+        <p class="slip-h" role="row"><span role="columnheader">When a part is done</span></p>
+        <p class="slip-row" role="row"><span role="cell">Paragraphs, chapters and pages</span><i aria-hidden="true"></i><span role="cell">about 10 s</span></p>
+        <p class="slip-row" role="row"><span role="cell">A pencil sketch holds each picture’s place</span><i aria-hidden="true"></i><span role="cell">at once</span></p>
+        <p class="slip-row" role="row"><span role="cell">The painting arrives</span><i aria-hidden="true"></i><span role="cell">a few minutes</span></p>
+      </div>
+      <div class="slip-group rise" role="rowgroup">
+        <p class="slip-h" role="row"><span role="columnheader">When they’re ready</span></p>
+        <p class="slip-row" role="row"><span role="cell">Read aloud, each word lit as it’s read</span><i aria-hidden="true"></i><span role="cell">per page</span></p>
+        <p class="slip-row" role="row"><span role="cell">Or they read it to you, recorded</span><i aria-hidden="true"></i><span role="cell">if you allow it</span></p>
+      </div>
+      <p class="slip-total rise" role="row"><span role="cell">A picture book with their name on it</span><span role="cell">one sitting</span></p>
+    </div>
+  </section>
+
+  <!-- 3. The live thing: their first line, set as page one -->
+  <section class="try" id="try" aria-labelledby="try-h">
+    <div class="plate rise" id="plate" data-ui data-theme="paper-cut-forest" aria-live="polite">
+      <figure class="plate-pic" id="plate-pic"><img id="plate-img" src="/home/img/moon-1-960.webp" srcset="/home/img/moon-1-960.webp 960w, /home/img/moon-1-1600.webp 1600w" sizes="(min-width: 900px) 45vw, 92vw" alt="A boy in pyjamas at his bedroom window, watching frogs around a glowing moon in the pond"><div class="sketch" id="sketch" hidden><span>Painting…</span></div></figure>
+      <div class="plate-words">
+        <p class="plate-title" id="plate-title">The Moon Fell in Our Pond</p>
+        <p class="plate-text" id="plate-text">Last night the moon fell in our pond. I heard it go SPLOOSH.</p>
+        <p class="plate-folio">1</p>
+      </div>
+    </div>
+    <div class="try-side rise">
+      <div class="tabs" role="radiogroup" aria-label="Theme">
+        <button role="radio" aria-checked="true" data-theme="paper-cut-forest">Paper Cut Forest</button>
+        <button role="radio" aria-checked="false" data-theme="night-sky-lanterns">Night Sky Lanterns</button>
+        <button role="radio" aria-checked="false" data-theme="watercolor-meadow">Watercolor Meadow</button>
+      </div>
+      <div class="try-mid">
+        <h2 id="try-h">Try the first page</h2>
+        <p>Type the first line of a story and see it set as page one. In the app, a picture of it would start painting now.</p>
+        <label class="first-line"><span class="vh">First line of a story</span><input id="first" maxlength="160" autocomplete="off" placeholder="Last night the moon fell in our pond…"></label>
+      </div>
+      <div class="cells">
+        <a class="cell ink" href="/signin/?new=1" data-start>Start for $19.50 a month</a>
+        <a class="cell tone" href="#price" data-repo>Run it yourself, free</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. What it does: four sheets, each sliding over the last -->
+  <section class="does" aria-labelledby="does-h">
+    <h2 id="does-h" class="does-h rise">What it does</h2>
+    <div class="sheets">
+      <article class="sheet s1">
+        <h3>Their words stay theirs</h3>
+        <p>Nothing rewrites a story. The book lays out pages and chapters around their words. Punctuation help is a suggestion they accept or skip, and the story helper answers questions without writing for them.</p>
+        <figure><img loading="lazy" src="/home/img/moon-1-960.webp" srcset="/home/img/moon-1-960.webp 960w, /home/img/moon-1-1600.webp 1600w" sizes="(min-width: 900px) 50vw, 100vw" alt="A boy at his window watching a glowing moon in the pond, surrounded by frogs"></figure>
+      </article>
+      <article class="sheet s2">
+        <h3>Pictures that stay in character</h3>
+        <p>Each character is drawn once and looks the same on every page. A kid’s own drawing can become the character.</p>
+        <figure class="cast-fig"><img loading="lazy" src="/home/img/moon-3-960.webp" srcset="/home/img/moon-3-960.webp 960w, /home/img/moon-3-1600.webp 1600w" sizes="(min-width: 900px) 50vw, 100vw" alt="The boy, his dog Pickles and the frogs pushing the giggling moon out of the pond with a broom">
+          <span class="cast"><img loading="lazy" src="/home/img/cast-pickles.webp" alt="Pickles the dog"><img loading="lazy" src="/home/img/cast-moon.webp" alt="The moon"><img loading="lazy" src="/home/img/cast-frogs.webp" alt="The frogs"></span></figure>
+      </article>
+      <article class="sheet s3">
+        <h3>Read aloud, word by word</h3>
+        <p>A storyteller reads each page as it forms and lights each word as it’s read. Pages turn on their own. With a parent’s okay, kids can record their own reading instead.</p>
+        <figure><img loading="lazy" src="/home/img/moon-5-960.webp" srcset="/home/img/moon-5-960.webp 960w, /home/img/moon-5-1600.webp 1600w" sizes="(min-width: 900px) 50vw, 100vw" alt="The boy at his window at bedtime, smiling up at the moon back in the sky"></figure>
+      </article>
+      <article class="sheet s4">
+        <h3>Send it to friends</h3>
+        <p>A parent makes a private link. Friends read the book and hear its pages, and nobody can change it. Stop sharing whenever you like.</p>
+        <figure><img loading="lazy" src="/home/img/plane-960.webp" srcset="/home/img/plane-960.webp 960w, /home/img/plane-1600.webp 1600w" sizes="(min-width: 900px) 50vw, 100vw" alt="A paper aeroplane folded from a picture-book page flying over village rooftops at sunset"></figure>
+      </article>
+    </div>
+  </section>
+
+  <!-- 5. Prices, set like the back of the book -->
+  <section class="price" id="price" aria-labelledby="price-h">
+    <div class="price-head rise">
+      <h2 id="price-h">What it costs</h2>
+      <img loading="lazy" src="/home/img/moon-4-960.webp" alt="The moon bouncing back into the night sky while the boy, his dog and the frogs watch from the hill">
+    </div>
+    <div class="menu rise">
+      <div class="menu-group">
+        <h3>Hosted by us</h3>
+        <p class="full-note" id="full-note" hidden>Every family place is taken for now. Join the waitlist and we’ll write when there’s room.</p>
+        <div class="item rise"><p class="nm">Family plan</p><p class="pr">$19.50 a month</p><p class="ds">Up to 12 writers. About 8 picture books a month, painted and read aloud.</p></div>
+        <div class="item rise"><p class="nm">Links to share a book</p><p class="pr">included</p><p class="ds">Private and read-only. Stop them any time.</p></div>
+        <div class="item rise"><p class="nm">Your family’s data</p><p class="pr">included</p><p class="ds">Download every book, or delete it all.</p></div>
+        <div class="item rise"><p class="nm">Cancel</p><p class="pr">any time</p><p class="ds">Billing by Stripe. Sold by <span data-seller></span>.</p></div>
+        <a class="btn" href="/signin/?new=1" data-start>Start for $19.50 a month</a>
+      </div>
+      <div class="menu-group">
+        <h3>Run it yourself</h3>
+        <div class="item rise"><p class="nm"><span data-app-name></span></p><p class="pr">$0</p><p class="ds">Free and open source (MIT). Runs on your own Cloudflare account.</p></div>
+        <div class="item rise"><p class="nm">Your AI providers</p><p class="pr">what they charge</p><p class="ds">One OpenAI key is enough to start. You pay them directly.</p></div>
+        <div class="item rise"><p class="nm">Setup</p><p class="pr">one command</p><p class="ds"><code>npm run setup</code> asks for your keys and deploys.</p></div>
+        <a class="btn tone" data-repo>Get the code</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. Promises to parents, printed on a card -->
+  <section class="promise" aria-labelledby="promise-h">
+    <div class="card rise">
+      <h2 id="promise-h">Our promises to parents</h2>
+      <img loading="lazy" src="/home/img/moon-2-960.webp" alt="The boy in yellow rain boots with a bucket beside the giant smiling moon in the pond">
+      <p class="vows rise">No ads<span aria-hidden="true">&nbsp;· </span><br class="m"> Nothing sold<span aria-hidden="true">&nbsp;· </span> Private until a parent shares a book<span aria-hidden="true">&nbsp;· </span> A parent password for grown-up things<span aria-hidden="true">&nbsp;· </span> Recordings off unless you turn them on<span aria-hidden="true">&nbsp;· </span> Audio from talking isn’t kept<span aria-hidden="true">&nbsp;· </span> Download everything<span aria-hidden="true">&nbsp;· </span> Delete everything</p>
+      <p class="card-more"><a href="/legal/privacy">Privacy notice</a> · <a href="/legal/parents">Notice to parents</a></p>
+    </div>
+  </section>
+
+  <!-- 7. Questions, answered as reading text -->
+  <section class="faq" aria-labelledby="faq-h">
+    <h2 id="faq-h" class="rise">Questions</h2>
+    <div class="answers">
+      <p class="rise"><b>Who is it for?</b> Kids who love telling stories. Younger writers talk; older ones type. A parent or guardian sets it up and holds the account.</p>
+      <p class="rise"><b>Does it write the story for them?</b> No. Every word is theirs. The story helper answers when they ask, with feedback and labelled examples, never their story.</p>
+      <p class="rise"><b>How long does a book take?</b> Pages form a few seconds after a pause. Pictures take a few minutes, longer when it’s busy. They can keep writing, or come back later.</p>
+      <p class="rise"><b>What does “about 8 books a month” mean?</b> The plan includes a monthly amount of pictures and reading aloud, enough for about eight picture books. Writing always works, even when it’s used up.</p>
+      <p class="rise"><b>Who can see the books?</b> Only your family, until a parent makes a link for a book. Anyone with that link can read it and could keep a copy. You can stop sharing any time.</p>
+      <p class="rise"><b>Is my child’s voice recorded?</b> Talking to write turns speech into text, and we don’t keep the audio. “Read it to me” recordings are kept only if you turn them on.</p>
+      <p class="rise"><b>Which AI does it use?</b> Language and image models from established providers, and ElevenLabs for reading aloud. Self-hosted copies use whichever providers you choose.</p>
+      <p class="rise"><b>Can I run it myself?</b> Yes. It’s free and open source. Deploy it to your own Cloudflare account with your own keys; one OpenAI key is enough.</p>
+      <p class="rise"><b>Why does it need a payment to start?</b> The first payment also confirms you’re the parent or guardian. There’s no separate charge for that.</p>
+      <p class="rise"><b>How do I cancel?</b> From your account page, any time. Your books stay yours to download.</p>
+    </div>
+  </section>
+</main>
+
+<!-- 8. The back cover -->
+<footer class="back">
+  <div class="back-cols rise">
+    <div><p class="first" data-app-name></p><a href="/signin/?new=1" data-start>Start</a><a href="/signin/" data-signin>Sign in</a><a href="#price">Pricing</a></div>
+    <div><p class="first">Open source</p><a data-repo>Source code</a><a href="#price">Run it yourself</a></div>
+    <div><p class="first">Parents</p><a href="/legal/privacy">Privacy</a><a href="/legal/terms">Terms</a><a href="/legal/parents">Notice to parents</a></div>
+    <div><p class="first">Sold by</p><p data-seller></p></div>
+  </div>
+  <p class="wordmark rise" aria-hidden="true"><svg viewBox="0 0 1000 210" preserveAspectRatio="xMidYMid meet"><text x="500" y="178" text-anchor="middle" textLength="990" lengthAdjust="spacingAndGlyphs" data-app-name></text></svg></p>
+  <p class="legal">© 2026 <span data-seller></span>. <span data-app-name></span> is sold by <span data-seller></span>.</p>
+</footer>
+<script type="module" src="/home/home.js"></script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+# Deploy to Cloudflare prompts for these secrets; no defaults are shipped.
+TEXT_API_KEY=
+PASSCODE=
+# Optional: IMAGE_API_KEY, OPENAI_API_KEY, ELEVENLABS_API_KEY.

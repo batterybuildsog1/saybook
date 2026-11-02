@@ -1,0 +1,257 @@
+/* write.css: the Write surface (write.js). A manuscript sheet on the desk: the printed book on top (chapters,
+   pages with a picture each, a play button per page), the draft below it on ruled paper, the mic at the foot.
+   A tools column (a row on narrow screens) holds "Read my book", the voice, "Fix my punctuation" and the characters.
+   Shared controls (.btn, .press, .side-btn, .x) live in app.css.
+   This is the MANUSCRIPT: the writing view, where the words get most of the screen (Alan, 2026-11-02, on a 1280×529
+   window: "I should be able to see 2-4-5 as much text"). Each page's picture is a small framed thumbnail beside its
+   words (tap it to change it); the talk/type controls sit in the tools column on wide screens.
+   The reading view (big pictures, pages that turn) is Read mode: read.js / read.css. */
+
+.ws { width: min(var(--ws-max), 100%); height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) var(--side-w); gap: 18px; }
+.ms {
+  position: relative; min-height: 0; display: flex; flex-direction: column;
+  background: var(--surface); border-radius: 5px 10px 10px 5px;
+  box-shadow: var(--shadow-lg), inset 16px 0 18px -16px color-mix(in srgb, var(--ink) 30%, transparent);
+  --read: 19px;      /* the book's type */
+  --lh: 34px;        /* the draft's ruled lines */
+  --measure: 720px;  /* a comfortable line length (about 75 characters) */
+}
+.ms-scroll { flex: 1; min-height: 0; overflow-y: auto; overflow-anchor: none; padding: 20px clamp(16px, 4%, 52px) 28px; }
+/* The title: a field on the first page. Empty, it shows the kid's own short first line (ink) or "Name your book" (soft). */
+.ms-title { width: fit-content; min-width: min(12em, 100%); max-width: 900px; margin: 0 auto 12px; padding: 2px 10px; text-align: center; font-family: var(--font-display); font-weight: 400; font-size: clamp(26px, 2.5vw, 36px); line-height: 1.12; outline: none; border-radius: 6px; overflow-wrap: anywhere; cursor: text; }
+.ms-title:empty { border-bottom: 2px dashed color-mix(in srgb, var(--ink) 20%, transparent); border-radius: 6px 6px 0 0; }
+.ms-title:empty::before { content: attr(data-ph); color: color-mix(in srgb, var(--ink-soft) 70%, transparent); }
+.ms-title.from-text:empty::before { color: var(--ink); }
+.ms-title:focus { background: color-mix(in srgb, var(--accent-2) 22%, transparent); }
+.ms-title:focus:empty::before { color: color-mix(in srgb, var(--ink-soft) 55%, transparent); }
+
+/* ---------- the printed book ---------- */
+.bk-ch { margin: 26px auto 14px; text-align: center; }
+.bk-ch:first-child { margin-top: 0; }
+.bk-ch h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 24px; line-height: 1.15; }
+.bk-ch small { display: block; margin-bottom: 2px; font-family: var(--font-body); font-size: 13px; letter-spacing: .2em; text-transform: uppercase; color: var(--ink-soft); }
+.bk-ch-read { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; min-height: 36px; padding: 0 14px 0 10px; border-radius: 99px; font-size: 15px; color: var(--ink); background: color-mix(in srgb, var(--accent-2) 30%, var(--surface)); }
+.bk-ch-read svg { font-size: 15px; }
+.bk-ch-read.on { background: var(--accent); color: var(--on-accent); }
+
+.bk-page { position: relative; display: flow-root; max-width: var(--measure); margin: 0 auto 18px; padding-bottom: 12px; border-bottom: 1px solid color-mix(in srgb, var(--ink) 12%, transparent); }
+.bk-page.fresh { animation: toPrint 1.4s ease both; }
+@keyframes toPrint { from { opacity: 0; filter: blur(3px); transform: translateY(calc(8px * var(--m))); } }
+/* The picture: a 3:2 frame of fixed size beside the words, so the page never moves while it loads (the old rule,
+   width:auto on the img, made it 0×0 until decoded: Sol's report #2, 2026-11-02). */
+.bk-fig { float: right; width: clamp(140px, 30%, 230px); margin: 4px 0 8px 18px; }
+.bk-pic { display: block; width: 100%; aspect-ratio: 3 / 2; padding: 0; border-radius: 4px; overflow: hidden; background: var(--surface-2); box-shadow: 0 2px 0 var(--lip); }
+.bk-pic img { display: block; width: 100%; height: 100%; object-fit: cover; background: var(--surface-2); }
+.bk-pic img.develop, .m-pic img.develop, .who img.develop { animation: develop 2.4s ease-out both; }
+@keyframes develop { from { opacity: .35; filter: grayscale(1) contrast(.55) brightness(1.3); } }
+.bk-stale { width: 100%; margin-top: 6px; min-height: 38px; padding: 0 8px; font-size: 14px; }
+.sketch {
+  position: relative; width: 100%; aspect-ratio: 3 / 2; display: grid; place-items: center; align-content: center; gap: 6px; padding: 6px; text-align: center;
+  border-radius: 4px; border: 2px dashed color-mix(in srgb, var(--ink) 30%, transparent); color: var(--ink-soft); font-size: 13px; line-height: 1.25; font-style: italic;
+  background-color: var(--surface-2);
+  background-image: repeating-linear-gradient(-35deg, transparent 0 10px, color-mix(in srgb, var(--ink) 8%, transparent) 10px 11px),
+    repeating-linear-gradient(55deg, transparent 0 22px, color-mix(in srgb, var(--ink) 5%, transparent) 22px 23px);
+  animation: hatch 9s linear infinite;
+}
+@keyframes hatch { to { background-position: 120px 0, -90px 0; } }
+.sketch span { position: relative; padding: 3px 9px; border-radius: 99px; background: color-mix(in srgb, var(--surface) 88%, transparent); }
+.sketch .btn.small { min-height: 36px; padding: 0 10px; font-size: 14px; gap: 5px; }
+.sketch.painting { border-style: solid; border-color: color-mix(in srgb, var(--accent-2) 70%, transparent); }
+.sketch.err { border-color: var(--accent); font-style: normal; }
+.sketch .pencil { display: none; }
+.sketch.mini { width: 100%; aspect-ratio: 1; border-width: 1px; animation-duration: 5s; }
+.bk-text p { margin: 0; font-size: var(--read); line-height: 1.6; }
+.bk-text p + p { text-indent: 1.5em; }
+.bk-text .w { border-radius: 4px; transition: color .15s, background-color .15s; }
+.bk-page.playing .bk-text .w { color: color-mix(in srgb, var(--ink-soft) 80%, var(--surface)); }
+.bk-page.playing .bk-text .w.lit { color: var(--ink); }
+.bk-page.playing .bk-text .w.now { color: var(--ink); background: color-mix(in srgb, var(--accent-2) 55%, transparent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-2) 55%, transparent); }
+.bk-foot { display: flex; align-items: center; justify-content: flex-start; gap: 10px; margin-top: 6px; }
+.bk-play, .bk-edit { position: relative; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 17px; background: var(--surface-2); }
+.bk-play { background: var(--accent-2); color: var(--on-accent); }
+.bk-page.playing .bk-play { background: var(--accent); }
+.bk-page.loading .bk-play::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 3px solid transparent; border-top-color: var(--accent); animation: spin 1s linear infinite; }
+.bk-num { min-width: 2.2em; text-align: center; font-family: var(--font-display); color: var(--ink-soft); }
+.bk-page.editing .bk-foot { display: none; }
+.pg-typer { display: block; width: 100%; min-height: 120px; margin-bottom: 10px; padding: 10px 12px; border: 2px dashed var(--accent-3); border-radius: 6px; outline: none; resize: none; overflow: hidden; background: var(--surface-2); color: var(--ink); font-family: var(--font-body); font-size: var(--read); line-height: 1.6; }
+
+/* ---------- the draft: still on ruled paper ---------- */
+.draft { position: relative; max-width: var(--measure); margin: 0 auto; }
+.draft-label { display: none; margin: 0 0 2px; font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--ink-soft); }
+.draft.has-draft .draft-label, .draft.forming .draft-label { display: block; }
+.draft.forming .draft-label { letter-spacing: .04em; text-transform: none; font-size: 15px; font-style: italic; color: var(--ink); }
+.draft.forming .draft-label::before { content: ""; display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: -1px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--ink) 20%, transparent); border-top-color: var(--accent); animation: spin 1s linear infinite; }
+.draft.forming .draft-text { animation: forming 2.4s ease-in-out infinite; }
+@keyframes forming { 50% { opacity: .55; } }
+.draft-text, .typer {
+  min-height: calc(var(--lh) * 3); font-family: var(--font-body); font-size: var(--read); line-height: var(--lh); color: var(--ink);
+  background: repeating-linear-gradient(to bottom, transparent 0 calc(var(--lh) - 2px), var(--rule) calc(var(--lh) - 2px) var(--lh));
+  background-attachment: local;
+}
+.draft-text p { margin: 0; white-space: pre-line; }
+.draft-text p + p { text-indent: 1.5em; }
+.draft-text .live { color: var(--ink-soft); font-style: italic; }
+.draft-text .live:empty::before { content: "Listening…"; }
+.draft.rec .live::after { content: ""; display: inline-block; width: 3px; height: 1em; margin-left: 3px; vertical-align: -0.12em; background: var(--accent); animation: caret 1s steps(2) infinite; }
+.draft-text .fresh { animation: wetInk 2.4s ease-out both; }
+@keyframes wetInk { from { color: var(--accent); } }
+.typer { display: block; width: 100%; padding: 0; border: 0; border-radius: 0; outline: none; resize: none; overflow: hidden; caret-color: var(--accent); -webkit-appearance: none; min-height: calc(var(--lh) * 4); }
+.ws[data-state="typing"] .draft-text { display: none; }
+.empty-hint { display: none; margin: 0; font-family: var(--font-display); font-size: clamp(20px, 2vw, 24px); line-height: 1.4; color: var(--ink-soft); text-align: center; padding: 24px 0; }
+.ws.empty .empty-hint { display: block; }
+.ws.empty .draft-text { min-height: 0; background: none; }
+
+.bk-cost { max-width: var(--measure); margin: 22px auto 4px; text-align: center; font-size: 13px; font-style: italic; color: var(--ink-soft); }
+
+/* ---------- the foot of the sheet: type, talk, what's happening ---------- */
+.ms-foot { flex: none; display: grid; grid-template-columns: 48px auto minmax(0, 1fr); align-items: center; gap: 14px; padding: 8px 18px; border-top: 1px solid color-mix(in srgb, var(--ink) 10%, transparent); }
+.ms-foot .act { flex-direction: row; gap: 12px; }
+.ms-foot .side-btn { width: 48px; height: 48px; font-size: 22px; border-radius: 12px; }
+.ms-foot .press { width: 60px; height: 60px; border-radius: 20px; font-size: 28px; box-shadow: 0 5px 0 var(--lip-accent); }
+.ms-foot .press.rec { border-radius: 50%; }
+.ms-foot .press-lbl { font-size: 17px; }
+.ms-status { margin: 0; justify-self: end; text-align: right; font-size: 15px; font-style: italic; color: var(--ink-soft); overflow-wrap: anywhere; }
+.ms-status.busy { font-style: normal; color: var(--ink); }
+.ms-status.busy::before { content: ""; display: inline-block; width: 13px; height: 13px; margin-right: 8px; vertical-align: -2px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--ink) 20%, transparent); border-top-color: var(--accent); animation: spin 1s linear infinite; }
+
+/* ---------- tools column ---------- */
+/* Wide screens: write.js moves the talk/type foot here, so the sheet keeps its whole height for words. */
+.ws-side > .ms-foot { grid-template-columns: 48px auto; justify-content: start; gap: 10px 12px; padding: 12px; border-top: 0; border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); }
+.ws-side > .ms-foot .ms-status { grid-column: 1 / -1; justify-self: start; text-align: left; font-size: 14px; }
+.ws-side > .ms-foot .ms-status:empty { display: none; }
+.cast-btn { justify-content: flex-start; }
+.cast-btn[hidden] { display: none; }
+.cast-list.in-sheet { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+.ws-side { min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 2px 2px 12px; }
+.ws-side > * { flex: none; } /* never squash (the portraits were cut to slivers on an iPad) */
+.side-card { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); }
+.read-book { min-height: 56px; font-size: 19px; line-height: 1.15; text-align: left; }
+.read-book .ico { flex: none; font-size: 21px; }
+.read-book.on { background: var(--accent-2); }
+.read-book.making { background: var(--accent-2); font-size: 16px; }
+.read-book.making .ico { display: none; }
+.read-book.making::before { content: ""; flex: none; width: 18px; height: 18px; border-radius: 50%; border: 3px solid color-mix(in srgb, var(--on-accent) 25%, transparent); border-top-color: var(--on-accent); animation: spin 1s linear infinite; }
+.voice-pick { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--ink-soft); }
+.voice-pick select { flex: 1; min-width: 0; min-height: 42px; padding: 0 8px; border-radius: 8px; border: 1px solid color-mix(in srgb, var(--ink) 20%, transparent); background: var(--surface); color: var(--ink); font: inherit; }
+.fix-punct { justify-content: flex-start; font-size: 17px; }
+/* Checking punctuation: the button fills as the paragraphs come back ("Checking… 12 of 29"). */
+.fix-punct.busy { cursor: progress; background: linear-gradient(90deg, color-mix(in srgb, var(--accent-2) 60%, var(--surface)) var(--p, 0%), var(--surface) var(--p, 0%)); }
+.fix-punct.busy svg { animation: spin 1.2s linear infinite; }
+.cast-box { padding: 12px; border-radius: 8px; background: color-mix(in srgb, var(--surface) 78%, transparent); }
+.cast-h { margin: 0 0 10px; font-family: var(--font-display); font-weight: 400; font-size: 19px; }
+.cast-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.who { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 6px; padding: 6px 6px 8px; border-radius: 4px; background: var(--surface); box-shadow: var(--shadow); font-family: var(--font-display); font-size: 15px; line-height: 1.1; text-align: center; overflow-wrap: anywhere; }
+.who img, .who .sketch.mini { width: 100%; height: auto; aspect-ratio: 1 / 1; object-fit: cover; border-radius: 3px; display: block; padding: 0; } /* grid, not flex: Safari squashes aspect-ratio images in a flex column */
+.who.meet { outline: 3px solid var(--accent-2); outline-offset: 2px; animation: toPrint 1.2s ease both; }
+
+/* ---------- sheets: a picture, a character, a punctuation suggestion ---------- */
+.modal { position: fixed; inset: 0; z-index: 45; display: grid; place-items: center; padding: 16px; background: color-mix(in srgb, var(--ink) 45%, transparent); }
+.m-card { position: relative; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 22px; width: min(920px, 100%); max-height: 100%; overflow-y: auto; padding: 22px; border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-lg); animation: arrive .3s var(--settle) both; }
+.m-card:has(.m-side.wide) { grid-template-columns: minmax(0, 1fr); width: min(560px, 100%); }
+.m-card.again { animation: none; } /* redrawn in place (a picture landed): no second arrival under the pointer */
+.modal.closing { animation: sheet-out .45s ease forwards; }
+.modal.closing > * { pointer-events: none; } /* clicks during the fade land on the backdrop, which ignores them */
+@keyframes sheet-out { to { opacity: 0; } }
+.m-h { user-select: none; -webkit-user-select: none; }
+.m-x { position: absolute; top: 10px; right: 10px; z-index: 2; }
+.m-pic { position: relative; min-height: 200px; display: grid; place-items: center; align-self: start; overflow: hidden; border-radius: 6px; background: var(--surface-2); }
+.m-pic img { display: block; width: 100%; height: auto; max-height: calc(100vh - 80px); object-fit: contain; }
+.m-busy { position: absolute; left: 0; right: 0; bottom: 0; padding: 10px; text-align: center; font-style: italic; background: color-mix(in srgb, var(--surface) 88%, transparent); }
+.m-side { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding-top: 26px; }
+.m-h { margin: 0; padding-right: 50px; font-family: var(--font-display); font-weight: 400; font-size: 30px; line-height: 1.1; }
+.m-label { margin: 6px 0 0; font-size: 15px; color: var(--ink-soft); }
+.m-look { margin: 0; font-size: 15px; color: var(--ink-soft); }
+.m-versions { display: flex; gap: 8px; overflow-x: auto; padding: 4px; }
+.ver { flex: none; width: 76px; height: 51px; border-radius: 4px; overflow: hidden; background: var(--surface-2); }
+.ver img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.ver.on { outline: 3px solid var(--accent); outline-offset: 2px; }
+.note { display: flex; align-items: center; gap: 6px; padding: 4px 4px 4px 14px; border-radius: 6px; background: color-mix(in srgb, var(--accent-2) 28%, var(--surface)); }
+.note input { flex: 1; min-width: 0; padding: 10px 0; border: 0; outline: none; background: none; font-size: 17px; }
+.note .mic { flex: none; width: 46px; height: 46px; border-radius: 8px; display: grid; place-items: center; font-size: 20px; background: var(--surface); }
+.note .mic.rec { background: var(--accent); color: var(--on-accent); }
+.note .mic.busy { opacity: .5; pointer-events: none; }
+.m-refs { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.ref { position: relative; width: 66px; height: 66px; }
+.ref img { width: 100%; height: 100%; object-fit: cover; border-radius: 4px; display: block; box-shadow: var(--shadow); }
+.ref .rm { position: absolute; top: -10px; right: -10px; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; background: var(--ink); color: var(--surface); }
+.add-ref { position: relative; width: 66px; height: 66px; display: grid; place-items: center; font-size: 26px; border-radius: 8px; border: 2px dashed color-mix(in srgb, var(--ink) 28%, transparent); background: var(--surface-2); cursor: pointer; }
+.add-ref input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.add-ref.busy, .m-upload.busy { opacity: .55; pointer-events: none; }
+.m-upload { position: relative; align-self: flex-start; cursor: pointer; }
+.m-upload .m-file { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; } /* invisible, but Tab still reaches it */
+.m-upload:focus-within { outline: 4px solid var(--accent); outline-offset: 4px; }
+.add-ref:focus-within { outline: 4px solid var(--accent); outline-offset: 3px; }
+.m-side .btn.primary { align-self: flex-start; }
+.pz-ctx { margin: 0; font-size: 19px; line-height: 1.5; }
+.pz-ctx mark { padding: 0 2px; border-radius: 3px; background: color-mix(in srgb, var(--accent-2) 55%, transparent); color: inherit; }
+.pz-fix { margin: 0; font-size: 21px; }
+.pz-old { text-decoration: line-through; color: var(--ink-soft); }
+.pz-new { font-weight: 700; }
+.pz-btns { display: flex; gap: 10px; margin-top: 6px; }
+.pz-wait { margin: 4px 0 8px; font-size: 19px; font-style: italic; }
+.pz-wait::before { content: ""; display: inline-block; width: 14px; height: 14px; margin-right: 10px; vertical-align: -1px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--ink) 20%, transparent); border-top-color: var(--accent); animation: spin 1s linear infinite; }
+
+/* ---------- tall screens: a little more air ---------- */
+@media (min-height: 900px) and (min-width: 1000px) {
+  .ms { --read: 20px; --lh: 36px; }
+  .ms-foot { padding: 10px 20px; }
+  .ms-foot .press { width: 68px; height: 68px; border-radius: 22px; font-size: 31px; }
+}
+/* ---------- short screens (Alan's 1280×529 window) ---------- */
+@media (max-height: 640px) {
+  .ms { --read: 18px; --lh: 31px; }
+  .ms-scroll { padding-top: 12px; }
+  .ms-title { font-size: 25px; margin-bottom: 6px; }
+  .bk-ch { margin: 18px auto 10px; }
+  .bk-ch h2 { font-size: 21px; }
+  .ms-foot { padding: 6px 14px; gap: 12px; grid-template-columns: 44px auto minmax(0, 1fr); }
+  .ms-foot .side-btn { width: 44px; height: 44px; font-size: 20px; }
+  .ms-foot .press { width: 50px; height: 50px; border-radius: 16px; font-size: 24px; box-shadow: 0 4px 0 var(--lip-accent); }
+  .ms-foot .press-lbl { font-size: 16px; }
+  .ws-side { gap: 10px; }
+  .side-card { padding: 10px; gap: 8px; }
+  .read-book { min-height: 48px; font-size: 17px; }
+  .voice-pick select { min-height: 38px; }
+  .fix-punct { min-height: 46px; font-size: 16px; }
+  .cast-box { padding: 10px; }
+  .cast-h { font-size: 17px; margin-bottom: 8px; }
+  .cast-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .who { padding: 4px 4px 6px; font-size: 13px; gap: 4px; }
+  .m-card { padding: 16px; gap: 16px; }
+  .m-side { padding-top: 8px; gap: 6px; }
+  .m-h { font-size: 24px; }
+  .m-pic { min-height: 0; }
+}
+
+@media (min-width: 1000px) { .cast-btn { display: none; } }
+
+/* ---------- narrow: the tools wrap under the sheet (nothing hides in a sideways strip); characters open in a sheet ---------- */
+@media (max-width: 999px) {
+  .ws { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; gap: 10px; }
+  .ws-side { flex-direction: row; flex-wrap: wrap; align-items: center; overflow: visible; padding: 2px 2px 4px; gap: 8px; }
+  .cast-box { display: none; }
+  .side-card { display: contents; }
+  .read-book, .fix-punct, .cast-btn { min-height: 46px; padding: 0 14px; font-size: 16px; white-space: nowrap; }
+  .read-book.making { font-size: 15px; }
+  .voice-pick { flex: none; font-size: 14px; white-space: nowrap; padding: 0 4px; }
+  .voice-pick select { min-height: 40px; }
+}
+
+/* ---------- phone ---------- */
+@media (max-width: 760px) {
+  .ms { --read: 18px; --lh: 32px; }
+  .ms-scroll { padding: 14px 16px 18px; }
+  .ms-title { font-size: 25px; }
+  .ms-foot { grid-template-columns: 44px auto minmax(0, 1fr); gap: 10px; padding: 6px 10px; }
+  .ms-foot .side-btn { width: 44px; height: 44px; }
+  .ms-foot .press { width: 54px; height: 54px; border-radius: 18px; font-size: 26px; }
+  .ms-foot .press-lbl { display: none; }
+  .ms-status { font-size: 13px; }
+  .voice-pick { font-size: 0; gap: 0; } /* the select keeps its own label (aria-label "Who reads it") */
+  .voice-pick select { max-width: 112px; font-size: 15px; }
+  .read-book, .fix-punct, .cast-btn { min-height: 44px; padding: 0 12px; font-size: 15px; }
+  .read-book .ico, .fix-punct svg, .cast-btn svg { font-size: 18px; }
+  .bk-fig { width: 40%; margin-left: 12px; }
+  .m-card { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+  .m-side { padding-top: 0; }
+}

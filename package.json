@@ -1,0 +1,37 @@
+{
+  "name": "saybook",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "setup": "node scripts/setup.mjs",
+    "dev": "wrangler dev",
+    "deploy": "npm run db:migrations:apply && wrangler deploy",
+    "check": "node --check src/worker.js && node --check src/providers.js && node --check src/tenant.js",
+    "e2e": "node e2e/run.mjs",
+    "db:migrations:apply": "wrangler d1 execute DB --remote --file migrations/0001-core.sql && wrangler d1 execute DB --remote --file migrations/0002-shares.sql"
+  },
+  "devDependencies": {
+    "playwright": "^1.64.1",
+    "wrangler": "^4.92.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "TEXT_API_KEY": {
+        "description": "Your own OpenAI-compatible API key. Never put a key in source control."
+      },
+      "PASSCODE": {
+        "description": "Choose a private family passcode. An empty value makes this self-host accessible without a passcode."
+      },
+      "DB": {
+        "description": "Private family stories, pages, settings and usage events."
+      },
+      "MEDIA": {
+        "description": "Family illustrations and saved narration recordings."
+      },
+      "PAINT": {
+        "description": "Finishes illustrations after the browser closes."
+      }
+    }
+  }
+}

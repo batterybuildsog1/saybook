@@ -1,0 +1,99 @@
+/* Night Sky Lanterns
+   Bedtime-story dark: a deep midnight-blue sky, warm paper lanterns, firefly mint and a glowing moon.
+   Display: Sniglet (round and soft, like a lantern). Body: Lexend (built for reading fluency).
+   Contrast (WCAG): ink/surface 12.6, ink-soft/surface 8.5, ink/bg 15.2, ink-soft/bg 10.3.
+   Text on any accent uses --on-accent (--ink is light here): accent 10.0, accent-2 10.7, accent-3 8.8.
+   Extras: put class `theme-night-sky-lanterns` on <html> or <body> for twinkling stars with a moon
+   and lanterns slowly rising behind the content (both z-index -1). */
+@import url("https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;700&family=Sniglet:wght@400;800&display=swap");
+
+:root {
+  color-scheme: dark;
+  font-synthesis: none; /* single-weight display faces stay real, never faux-bold */
+
+  --bg: #0e1c2b;
+  --bg-2: #18324a;
+  --surface: #172c41;
+  --surface-2: #213a53;
+  --ink: #f7f0e3;
+  --ink-soft: #bccad6;
+
+  --accent: #ffb547;    /* lantern amber */
+  --accent-2: #74dcc4;  /* firefly mint */
+  --accent-3: #ff9d8c;  /* paper lantern pink */
+  --on-accent: #241604;
+
+  --font-display: "Sniglet", "Arial Rounded MT Bold", system-ui, sans-serif;
+  --font-body: "Lexend", "Avenir Next", system-ui, sans-serif;
+
+  --radius: 20px;
+  --radius-lg: 32px;
+  --shadow: 0 1px 0 rgba(255, 240, 210, .05) inset, 0 10px 24px -10px rgba(1, 6, 14, .75);
+  --shadow-lg: 0 1px 0 rgba(255, 240, 210, .06) inset, 0 0 0 1px rgba(255, 213, 140, .06), 0 32px 64px -22px rgba(0, 0, 0, .8);
+
+  --ease-bounce: cubic-bezier(.3, 1.28, .6, 1);
+  --motion-scale: .7;
+
+  --pattern: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='360' height='360' fill='%23fff4dc'>\
+<circle cx='22' cy='30' r='1.1' opacity='.7'/><circle cx='84' cy='12' r='.8' opacity='.5'/><circle cx='150' cy='54' r='1.4' opacity='.8'/>\
+<circle cx='212' cy='22' r='.9' opacity='.45'/><circle cx='300' cy='70' r='1.2' opacity='.7'/><circle cx='340' cy='18' r='.7' opacity='.4'/>\
+<circle cx='40' cy='120' r='.8' opacity='.5'/><circle cx='118' cy='150' r='1' opacity='.6'/><circle cx='250' cy='130' r='.8' opacity='.45'/>\
+<circle cx='330' cy='170' r='1.3' opacity='.75'/><circle cx='18' cy='220' r='1.2' opacity='.6'/><circle cx='96' cy='250' r='.7' opacity='.4'/>\
+<circle cx='190' cy='214' r='1.5' opacity='.85'/><circle cx='270' cy='262' r='.9' opacity='.5'/><circle cx='60' cy='320' r='1' opacity='.55'/>\
+<circle cx='160' cy='310' r='.8' opacity='.45'/><circle cx='230' cy='344' r='1.2' opacity='.7'/><circle cx='320' cy='320' r='.8' opacity='.5'/>\
+<path d='M200 96l2.2 6.8 6.8 2.2-6.8 2.2-2.2 6.8-2.2-6.8-6.8-2.2 6.8-2.2z' opacity='.85'/>\
+<path d='M70 190l1.6 4.4 4.4 1.6-4.4 1.6-1.6 4.4-1.6-4.4-4.4-1.6 4.4-1.6z' opacity='.7'/>\
+</svg>");
+}
+
+/* ---- optional extras ---- */
+/* moon + brighter stars that breathe */
+.theme-night-sky-lanterns::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><defs><filter id='b' x='-50%' y='-50%' width='200%' height='200%'><feGaussianBlur stdDeviation='16'/></filter><mask id='m'><rect width='220' height='220' fill='white'/><circle cx='132' cy='92' r='44' fill='black'/></mask></defs><circle cx='110' cy='110' r='58' fill='%23ffe2a6' opacity='.35' filter='url(%23b)'/><circle cx='110' cy='110' r='46' fill='%23fff1cf' mask='url(%23m)'/></svg>"),
+    url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='520' height='420' fill='%23fff7e4'><path d='M60 60l3 9 9 3-9 3-3 9-3-9-9-3 9-3z'/><path d='M420 140l2.4 7 7 2.4-7 2.4-2.4 7-2.4-7-7-2.4 7-2.4z'/><path d='M260 330l2 6 6 2-6 2-2 6-2-6-6-2 6-2z'/><circle cx='180' cy='120' r='1.8'/><circle cx='480' cy='300' r='1.6'/><circle cx='90' cy='280' r='1.5'/><circle cx='330' cy='40' r='1.7'/></svg>");
+  background-repeat: no-repeat, repeat;
+  background-position: right 6% top 3%, 0 0;
+  background-size: 200px 200px, auto;
+  animation: nsl-twinkle calc(5s / max(var(--motion-scale), .2)) ease-in-out infinite alternate;
+}
+/* lanterns rising */
+.theme-night-sky-lanterns::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: calc(100vh + 1000px);
+  z-index: -1;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='900' height='1000'>\
+<defs><filter id='b' x='-100%' y='-100%' width='300%' height='300%'><feGaussianBlur stdDeviation='12'/></filter>\
+<g id='l'><circle r='34' fill='%23ffad3d' opacity='.45' filter='url(%23b)'/><path d='M-12-16h24l6 7v15l-7 10h-22l-7-10V-9z' fill='%23ffb547'/><path d='M-6-12h12l3 5v12l-4 7h-10l-4-7V-7z' fill='%23ffe3ad' opacity='.7'/><rect x='-6' y='17' width='12' height='3' rx='1.5' fill='%23b8661a'/></g></defs>\
+<use href='%23l' transform='translate(110 180) scale(1.5)'/>\
+<use href='%23l' transform='translate(760 420) scale(1)'/>\
+<use href='%23l' transform='translate(420 760) scale(1.25)'/>\
+<use href='%23l' transform='translate(640 900) scale(.8)'/>\
+<use href='%23l' transform='translate(250 560) scale(.7)'/>\
+</svg>");
+  background-repeat: repeat;
+  opacity: .8;
+  animation: nsl-rise calc(90s / max(var(--motion-scale), .2)) linear infinite;
+}
+@keyframes nsl-twinkle {
+  from { opacity: .55; }
+  to   { opacity: 1; }
+}
+@keyframes nsl-rise {
+  from { transform: translate3d(0, 0, 0); }
+  to   { transform: translate3d(0, -1000px, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-night-sky-lanterns::before,
+  .theme-night-sky-lanterns::after { animation: none; }
+}

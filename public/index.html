@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title></title>
+<!-- Safety net: the contract's tokens, in case a theme file can't load. The theme below always wins. -->
+<style>
+:root {
+  --bg: #dbe8d1; --bg-2: #b7d2a8; --surface: #fdfcf6; --surface-2: #eef3e5; --ink: #16392b; --ink-soft: #3f5d4b;
+  --accent: #f2804a; --accent-2: #f4c04a; --accent-3: #8fca72; --on-accent: #14352a;
+  --font-display: Georgia, "Times New Roman", serif; --font-body: "Avenir Next", system-ui, sans-serif;
+  --radius: 8px; --radius-lg: 16px;
+  --shadow: 0 8px 20px -4px rgba(22, 57, 43, .25); --shadow-lg: 0 30px 60px -14px rgba(22, 57, 43, .4);
+  --ease-bounce: cubic-bezier(.2, .8, .25, 1); --motion-scale: 1; --pattern: none;
+}
+</style>
+<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/write.css">
+<link rel="stylesheet" href="/read.css">
+<link rel="stylesheet" href="/family.css">
+<script>
+  // Theme: ?theme=<name> picks one and remembers it on this device. Default: Paper Cut Forest.
+  // Offered: paper-cut-forest, night-sky-lanterns, watercolor-meadow.
+  (function () {
+    var T = ['paper-cut-forest', 'night-sky-lanterns', 'watercolor-meadow'];
+    var q = new URLSearchParams(location.search).get('theme'), t = null;
+    try { if (T.indexOf(q) >= 0) localStorage.setItem('stories.theme', q); t = localStorage.getItem('stories.theme'); } catch (e) { t = q; }
+    if (T.indexOf(t) < 0) t = T[0];
+    document.write('<link rel="stylesheet" id="theme-css" href="/themes/' + t + '.css">');
+    document.documentElement.classList.add('theme-' + t);
+    window.STORY_THEMES = { list: T, current: t };
+  })();
+</script>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-mic" viewBox="0 0 24 24"><rect x="8.5" y="2.5" width="7" height="12" rx="3.5"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3.5"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="3" class="fill"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z" class="fill"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6.5" y="5" width="4" height="14" rx="1.6" class="fill"/><rect x="13.5" y="5" width="4" height="14" rx="1.6" class="fill"/></symbol>
+    <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M4 20l1-4.5L16 4.5l3.5 3.5L8.5 19z"/><path d="M13.5 7l3.5 3.5"/></symbol>
+    <symbol id="i-ears" viewBox="0 0 24 24"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="13.5" width="4.5" height="7" rx="2"/><rect x="16.5" y="13.5" width="4.5" height="7" rx="2"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M3 5.5C5.5 4 9 4 12 6c3-2 6.5-2 9-.5V19c-2.5-1.5-6-1.5-9 .5-3-2-6.5-2-9-.5z"/><path d="M12 6v13.5"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M14.5 5l-7 7 7 7"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="M9.5 5l7 7-7 7"/></symbol>
+    <symbol id="i-keys" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12.5" rx="3"/><path d="M6.5 10h.01M10 10h.01M13.5 10h.01M17 10h.01M8 14.5h8"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.5 12.5l5 5 10-11"/></symbol>
+    <symbol id="i-send" viewBox="0 0 24 24"><path d="M4.5 12L20 4.5 15 20l-3-6.5z"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/></symbol>
+    <symbol id="i-redo" viewBox="0 0 24 24"><path d="M19.5 12.5a7.5 7.5 0 1 1-2.2-5.8"/><path d="M19.5 3.5v5h-5"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-del" viewBox="0 0 24 24"><path d="M9 5h11.5v14H9l-6.5-7z"/><path d="M12 9.5l5 5M17 9.5l-5 5"/></symbol>
+    <symbol id="i-chat" viewBox="0 0 24 24"><path d="M4 5h16v11H10l-6 4.5z"/></symbol>
+    <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 15V3.5M7.5 8L12 3.5 16.5 8"/><path d="M5 12.5v6.5h14v-6.5"/></symbol>
+    <symbol id="i-press" viewBox="0 0 24 24"><path d="M4 21h16M6 21V9h12v12M9 9V4h6v5M9 13h6M9 17h6"/></symbol>
+    <symbol id="i-people" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-4 3.2-6 6.5-6s6 2 6.5 6"/><circle cx="17" cy="9" r="2.6"/><path d="M16 14.2c3 0 5 1.8 5.5 5"/></symbol>
+  </defs>
+</svg>
+
+<div id="app" class="kid-screen" data-screen="boot" data-step="write">
+
+  <!-- 0. Opening: a moment while the passcode cookie is checked -->
+  <section class="screen boot on" data-s="boot" aria-label="Opening"><i class="boot-mark" aria-hidden="true"></i></section>
+
+  <!-- 1. Passcode: the book is closed and has a clasp -->
+  <section class="screen lock" data-s="lock" aria-label="Unlock">
+    <div class="lock-wrap">
+      <div class="closed-book" id="closed-book">
+        <div class="cover-front">
+          <div class="cover-frame">
+            <span class="cover-emblem" aria-hidden="true"><svg><use href="#i-book"/></svg></span>
+            <h1 class="cover-word" data-app-name></h1>
+          </div>
+          <div class="clasp" aria-live="polite"><i></i><i></i><i></i><i></i></div>
+        </div>
+        <div class="cover-inside" aria-hidden="true"></div>
+      </div>
+      <div class="lock-side">
+        <p class="lock-ask">Enter the passcode</p>
+        <form class="code-form ph-no-capture" id="code-form" autocomplete="off" hidden>
+          <input id="code-input" type="password" autocomplete="current-password" aria-label="Family passcode" spellcheck="false" enterkeyhint="go">
+          <button class="btn primary" type="submit">Open</button>
+        </form>
+        <div class="pad ph-no-capture">
+          <button data-k="1">1</button><button data-k="2">2</button><button data-k="3">3</button>
+          <button data-k="4">4</button><button data-k="5">5</button><button data-k="6">6</button>
+          <button data-k="7">7</button><button data-k="8">8</button><button data-k="9">9</button>
+          <button data-k="ok" class="ok" aria-label="Open" hidden><svg><use href="#i-check"/></svg></button><button data-k="0">0</button><button data-k="del" class="del" aria-label="Delete"><svg><use href="#i-del"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 1b. Who's writing? First run, and the grown-ups corner's "Writers" -->
+  <section class="screen writers" data-s="writers" aria-labelledby="wf-title">
+    <div class="wf-card">
+      <h1 class="wf-title" id="wf-title">Who’s writing?</h1>
+      <p class="wf-sub">Add each writer. Everyone gets their own shelf.</p>
+      <ul class="wf-list" id="wf-list" aria-label="Writers"></ul>
+      <form class="wf-form" id="wf-form" autocomplete="off">
+        <input id="wf-input" maxlength="24" placeholder="First name" aria-label="Writer's first name" autocapitalize="words" enterkeyhint="done">
+        <div class="wf-swatches" id="wf-swatches" role="radiogroup" aria-label="Their colour"></div>
+        <button class="btn small" id="wf-add" type="submit"><svg><use href="#i-plus"/></svg>Add</button>
+      </form>
+      <button class="btn primary wf-done" id="wf-done" type="button" disabled>To the bookcase<svg><use href="#i-next"/></svg></button>
+    </div>
+  </section>
+
+  <!-- 2. The bookcase -->
+  <section class="screen shelf" data-s="shelf" aria-label="Bookcase">
+    <header class="case-top">
+      <h1 class="case-title" id="case-title"></h1>
+      <div class="tags" id="tags" role="group" aria-label="Whose shelf"></div>
+    </header>
+    <div class="case" id="case"></div>
+    <div class="grownups">
+      <button class="grownups-btn" id="grownups-btn" aria-expanded="false">Grown-ups</button>
+      <div class="grownups-panel" id="grownups-panel" hidden>
+        <p class="gp-h">Theme</p>
+        <div class="gp-themes" id="gp-themes"></div>
+        <p class="gp-h">Reader style</p>
+        <div class="gp-themes" id="gp-reader" role="radiogroup" aria-label="Reader style"></div>
+        <label class="gp-row"><input type="checkbox" id="gp-live"> Show words live while talking</label>
+        <div class="gp-links">
+          <button class="gp-link" id="gp-writers" type="button">Writers</button>
+          <a class="gp-link" id="gp-status" href="/setup/">Status</a>
+          <a class="gp-link" id="gp-account" href="/account/" hidden>Account</a>
+          <button class="gp-link" id="gp-signout" type="button" hidden>Sign out</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. The desk: ribbon bookmarks on top, the open book below -->
+  <section class="screen desk" data-s="desk" aria-label="Story">
+    <header class="desk-top">
+      <button class="chip back" id="desk-back" aria-label="Back to the bookcase"><svg><use href="#i-back"/></svg><span>Shelf</span></button>
+      <nav class="ribbons" aria-label="Write or read">
+        <button class="ribbon" data-step="write" style="--rib: var(--accent)"><span class="patch"><svg><use href="#i-pencil"/></svg>Write</span></button>
+        <button class="ribbon" data-step="read" style="--rib: var(--accent-2)"><span class="patch"><svg><use href="#i-book"/></svg>Read</span></button>
+      </nav>
+      <div class="desk-end">
+        <button class="chip share-btn" id="share-btn" type="button" aria-haspopup="dialog" aria-label="Share this book"><svg><use href="#i-share"/></svg><span>Share</span></button>
+        <div class="name-tag"><span id="me-name"></span></div>
+      </div>
+    </header>
+
+    <div class="table">
+      <!-- Write: the dense manuscript (write.js mounts it here); the draft becomes book pages in place -->
+      <div id="write-surface"></div>
+
+      <!-- Read: the finished book (read.js mounts it here): big pictures, distinct pages, read aloud word by word -->
+      <div id="read-surface"></div>
+    </div>
+  </section>
+
+  <!-- The story helper (help on request): a note at the foot of the bookcase; on the desk a chip in the header that
+       opens downward, so the writing sheet keeps the whole height of the screen -->
+  <div class="chat" id="chat">
+    <button class="chat-open" id="chat-open" type="button" aria-label="Ask the story helper" aria-expanded="false"><svg><use href="#i-chat"/></svg><span>Story helper</span></button>
+    <div class="chat-panel" id="chat-panel" role="dialog" aria-label="Story helper">
+      <header class="chat-head"><span class="helper"><svg><use href="#i-pencil"/></svg></span><b>Story helper</b><button class="x" id="chat-close" aria-label="Close"><svg><use href="#i-close"/></svg></button></header>
+      <div class="chat-log" id="chat-log"></div>
+    </div>
+    <form class="chat-bar" id="chat-form" autocomplete="off">
+      <span class="chat-ico" id="chat-ico"><svg><use href="#i-chat"/></svg></span>
+      <input id="chat-input" placeholder="Ask the story helper…" aria-label="Ask the story helper" enterkeyhint="send">
+      <button class="chat-send" aria-label="Send"><svg><use href="#i-send"/></svg></button>
+    </form>
+  </div>
+
+  <!-- The printing press is resting (hosted pause or the month's allowance used): writing goes on, words are saved -->
+  <aside class="press-note" id="press-note" role="status" hidden>
+    <span class="press-ico" aria-hidden="true"><svg><use href="#i-press"/></svg></span>
+    <span><b>The printing press is resting.</b> Keep writing. Your words are saved, and pictures and reading aloud will be back soon.</span>
+    <button class="x" id="press-x" type="button" aria-label="Close"><svg><use href="#i-close"/></svg></button>
+  </aside>
+
+  <!-- Share: a read-only link to this book -->
+  <dialog class="share" id="share" aria-labelledby="share-h">
+    <div class="share-card">
+      <button class="x" id="share-close" type="button" aria-label="Close"><svg><use href="#i-close"/></svg></button>
+      <h2 class="share-h" id="share-h">Send it to friends</h2>
+      <p class="share-title" id="share-title"></p>
+      <div id="share-off">
+        <p class="share-p">A grown-up makes the link. Friends can read the book and hear pages already read aloud. Nobody can change it.</p>
+        <label class="share-row"><input type="checkbox" id="share-author-0"> Show who wrote it</label>
+        <label class="share-row consent"><input type="checkbox" id="share-consent"> I agree to share this book outside our family. Anyone with the link can view or copy it, including its read-aloud.</label>
+        <p class="share-err" id="share-err" role="alert" hidden></p>
+        <button class="btn primary" id="share-make" type="button" disabled><svg><use href="#i-share"/></svg>Make a link</button>
+      </div>
+      <div id="share-on" hidden>
+        <div class="share-linkrow">
+          <input id="share-link" readonly aria-label="Link to the book" onfocus="this.select()">
+          <button class="btn small primary" id="share-copy" type="button"><svg><use href="#i-check"/></svg><span>Copy</span></button>
+        </div>
+        <button class="btn small" id="share-send" type="button" hidden><svg><use href="#i-send"/></svg>Send</button>
+        <p class="share-p small" id="share-who"></p>
+        <button class="share-stop" id="share-stop" type="button">Stop sharing</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden><span class="toast-msg" id="toast-msg"></span><button class="btn small primary" id="toast-retry" hidden><svg><use href="#i-redo"/></svg>Try again</button><button class="x" id="toast-x" aria-label="Close"><svg><use href="#i-close"/></svg></button></div>
+  <audio id="player" preload="auto" playsinline></audio>
+</div>
+
+<script src="/listen.js"></script>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

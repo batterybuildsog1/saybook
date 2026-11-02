@@ -1,0 +1,44 @@
+name = "storybook"
+main = "src/worker.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+rules = [{ type = "Text", globs = ["**/*.md"], fallthrough = true }]
+[assets]
+directory = "./public"
+binding = "ASSETS"
+run_worker_first = true
+html_handling = "auto-trailing-slash"
+[vars]
+MODE = "self"
+TEXT_BASE_URL = "https://api.openai.com/v1"
+TEXT_MODEL = "gpt-4.1-mini"
+VISION_MODEL = "gpt-4.1-mini"
+IMAGE_BASE_URL = "https://api.openai.com/v1"
+IMAGE_MODEL = "gpt-image-2.5-sunburst"
+IMAGE_QUALITY = "medium"
+OPENAI_TTS_MODEL = "tts-1"
+OPENAI_TTS_VOICE = "coral"
+TTS_MODEL = "eleven_multilingual_v2"
+[[d1_databases]]
+binding = "DB"
+database_name = "storybook"
+database_id = "REPLACE_WITH_D1_ID"
+migrations_dir = "migrations"
+[[r2_buckets]]
+binding = "MEDIA"
+bucket_name = "storybook-media"
+[images]
+binding = "IMAGES"
+[ai]
+binding = "AI"
+[[queues.producers]]
+binding = "PAINT"
+queue = "storybook-paint"
+[[queues.consumers]]
+queue = "storybook-paint"
+max_batch_size = 1
+max_batch_timeout = 1
+max_concurrency = 5
+max_retries = 3
+[observability]
+enabled = true

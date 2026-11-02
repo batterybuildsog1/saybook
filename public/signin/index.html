@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Sign in</title>
+<link rel="stylesheet" href="/grown.css">
+</head>
+<body>
+<header class="bar"><a class="mark" href="/home/" data-app-name></a><nav><a href="/home/#price">Pricing</a></nav></header>
+<main class="stage">
+  <div class="card" id="card">
+    <div class="tabs" role="tablist" aria-label="Sign in or create an account">
+      <button role="tab" id="t-in" aria-selected="true" aria-controls="f-in">Sign in</button>
+      <button role="tab" id="t-new" aria-selected="false" aria-controls="f-new">New family</button>
+    </div>
+
+    <form id="f-in" role="tabpanel" aria-labelledby="t-in" novalidate>
+      <h1>Welcome back</h1>
+      <p class="soft">For parents and guardians. Kids don’t need a password.</p>
+      <label class="field"><span>Email</span><input name="email" type="email" autocomplete="username" required></label>
+      <label class="field"><span>Password</span><input name="password" type="password" autocomplete="current-password" required></label>
+      <p class="err" role="alert" hidden></p>
+      <div class="row"><button class="btn" type="submit">Sign in</button><button class="link" type="button" id="to-recover">Forgot your password?</button></div>
+    </form>
+
+    <form id="f-new" role="tabpanel" aria-labelledby="t-new" novalidate hidden>
+      <h1>Start a family shelf</h1>
+      <p class="soft">A parent or guardian makes the account. Kids get their own shelves inside it.</p>
+      <label class="field"><span>Your email</span><input name="email" type="email" autocomplete="email" required></label>
+      <label class="field"><span>Password</span><input name="password" type="password" autocomplete="new-password" minlength="14" required aria-describedby="pw-hint"><small id="pw-hint">At least 14 characters. A short sentence you’ll remember works well.</small></label>
+      <label class="check"><input type="checkbox" name="parent" required><span>I’m a parent or legal guardian, and 18 or older.</span></label>
+      <label class="check"><input type="checkbox" name="consent" required><span>I’ve read the <a href="/legal/parents" target="_blank">notice to parents</a> and agree to how <span data-app-name></span> handles my children’s stories.</span></label>
+      <p class="err" role="alert" hidden></p>
+      <button class="btn" type="submit">Create account</button>
+      <p class="soft small" style="margin-top:16px">Next you’ll start the <span data-price></span> monthly plan. Paying also confirms you’re the parent or guardian; there’s no separate charge for that.</p>
+    </form>
+
+    <form id="f-recover" novalidate hidden>
+      <h1>New password</h1>
+      <p class="soft">Use the recovery code you saved when you made the account.</p>
+      <label class="field"><span>Email</span><input name="email" type="email" autocomplete="username" required></label>
+      <label class="field"><span>Recovery code</span><input name="recovery_code" autocomplete="off" spellcheck="false" required></label>
+      <label class="field"><span>New password</span><input name="password" type="password" autocomplete="new-password" minlength="14" required><small>At least 14 characters.</small></label>
+      <p class="err" role="alert" hidden></p>
+      <div class="row"><button class="btn" type="submit">Set password</button><button class="link" type="button" id="back-in">Back to sign in</button></div>
+    </form>
+
+    <section id="saved" hidden aria-labelledby="saved-h">
+      <h1 id="saved-h">Save this code</h1>
+      <p>It’s the only way back in if you forget your password. We can’t show it again.</p>
+      <code class="code" id="code"></code>
+      <div class="row" style="margin-bottom:18px"><button class="btn quiet" type="button" id="copy">Copy</button><button class="btn quiet" type="button" id="dl">Download</button></div>
+      <label class="check"><input type="checkbox" id="kept"><span>I’ve saved my recovery code somewhere safe.</span></label>
+      <button class="btn" type="button" id="go" disabled>Continue</button>
+    </section>
+
+    <form id="f-wait" novalidate hidden aria-labelledby="wait-h">
+      <h1 id="wait-h">We’re full for now</h1>
+      <p><span data-app-name></span> takes a small number of families while it grows. Leave an email and we’ll write when there’s room. Nothing else is asked, and no payment.</p>
+      <label class="field"><span>Your email</span><input name="email" type="email" autocomplete="email" required></label>
+      <p class="err" role="alert" hidden></p>
+      <div class="row"><button class="btn" type="submit">Join the waitlist</button><a class="link" id="wait-repo">Or run it yourself, free</a></div>
+    </form>
+
+    <section id="waited" hidden aria-labelledby="waited-h">
+      <h1 id="waited-h">You’re on the list</h1>
+      <p id="waited-p">We’ll email you when there’s room for your family.</p>
+      <a class="btn quiet" href="/home/">Back to the start</a>
+    </section>
+
+    <section id="closed" hidden aria-labelledby="closed-h">
+      <h1 id="closed-h">Not open yet</h1>
+      <p><span data-app-name></span> isn’t taking new families yet. It’s free and open source, so you can run your own copy today.</p>
+      <div class="row"><a class="btn" id="repo">Run it yourself</a><button class="link" type="button" id="closed-back">Sign in instead</button></div>
+    </section>
+  </div>
+</main>
+<footer class="foot"><span><span data-app-name></span> is sold by <span data-seller></span>.</span><a href="/legal/privacy">Privacy</a><a href="/legal/terms">Terms</a><a href="/legal/parents">Notice to parents</a></footer>
+<script type="module" src="/signin/signin.js"></script>
+</body>
+</html>

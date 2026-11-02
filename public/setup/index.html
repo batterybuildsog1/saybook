@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Status</title>
+<link rel="stylesheet" href="/grown.css">
+</head>
+<body>
+<header class="bar"><a class="mark" href="/" data-app-name></a><nav><a href="/" id="nav-open"><span>Open <span data-app-name></span></span></a></nav></header>
+<main class="wrap" aria-live="polite">
+  <section class="sheet" id="loading"><p class="soft">Checking this copy…</p></section>
+
+  <section class="sheet" id="status" hidden aria-labelledby="status-h">
+    <h1 id="status-h"></h1>
+    <p class="lede" id="status-p"></p>
+    <ul class="lines" id="lines" aria-label="Providers and storage"></ul>
+  </section>
+
+  <section class="sheet" id="fix" hidden aria-labelledby="fix-h">
+    <div id="fix-in">
+      <h2 id="fix-h">Connect what’s missing</h2>
+      <p>In the project folder, run:</p>
+      <div class="cmd"><code id="cmd">npm run setup</code><button type="button" id="copy">Copy</button></div>
+      <p class="soft">It asks for your keys and saves them as secrets on your Cloudflare Worker, then deploys. Keys never go through this page. One OpenAI key is enough to start.</p>
+    </div>
+  </section>
+
+  <section class="sheet" id="more" hidden aria-labelledby="more-h">
+    <h2 id="more-h">Keys and spending</h2>
+    <p id="month"></p>
+    <div class="row"><button class="btn quiet" type="button" id="check">Check the keys</button><span class="soft small" id="check-say">Free calls only: each key is asked to list its models.</span></div>
+  </section>
+
+  <section class="sheet" id="stats-sec" hidden aria-labelledby="stats-h">
+    <h2 id="stats-h">Usage stats</h2>
+    <p>This copy has a PostHog key. Text and inputs are masked and kids’ pictures are blocked before anything is sent. Off until you turn it on, on this device only.</p>
+    <label class="check"><input type="checkbox" id="stats"><span>Send usage from this device to my PostHog project</span></label>
+  </section>
+
+  <section class="sheet" id="go" hidden>
+    <div class="row"><a class="btn" href="/" id="open"><span>Open <span data-app-name></span></span></a><a class="link" href="/" id="anyway" hidden>Open it anyway</a></div>
+  </section>
+</main>
+<footer class="foot"><span>A self-hosted copy of <span data-app-name></span>. Free and open source.</span><a id="repo">Source code</a></footer>
+<script type="module" src="/setup/setup.js"></script>
+</body>
+</html>

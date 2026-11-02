@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>A book</title>
+<link rel="stylesheet" href="/book/book.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.2v13.6L19 12z" class="fill"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6.5" y="5" width="4" height="14" rx="1" class="fill"/><rect x="13.5" y="5" width="4" height="14" rx="1" class="fill"/></symbol>
+  <symbol id="i-prev" viewBox="0 0 24 24"><path d="M14.5 5l-7 7 7 7"/></symbol>
+  <symbol id="i-next" viewBox="0 0 24 24"><path d="M9.5 5l7 7-7 7"/></symbol>
+</defs></svg>
+<main class="bk" id="bk" data-at="cover" aria-live="polite">
+  <p class="bk-wait" id="wait">Opening the book…</p>
+
+  <section class="cover" id="cover" hidden aria-labelledby="c-title">
+    <figure class="cover-pic"><img id="c-img" alt=""></figure>
+    <div class="cover-words">
+      <h1 class="c-title" id="c-title"></h1>
+      <p class="c-by" id="c-by" hidden></p>
+      <button class="open" type="button" id="open">Open the book <svg><use href="#i-next"/></svg></button>
+    </div>
+  </section>
+
+  <section class="spread" id="spread" hidden>
+    <figure class="pic" id="pic"><img id="p-img" alt=""></figure>
+    <article class="txt" id="txt" tabindex="-1"><div class="txt-in" id="txt-in"></div><p class="folio" id="folio"></p></article>
+  </section>
+
+  <section class="end" id="end" hidden aria-labelledby="e-h">
+    <h2 class="e-h" id="e-h">The end</h2>
+    <p class="e-title" id="e-title"></p>
+    <div class="e-acts"><button class="again" type="button" id="again">Read it again</button><a class="made" id="made" href="/home/">Made with <span data-app-name></span></a></div>
+  </section>
+
+  <section class="gone" id="gone" hidden><h1 class="e-h">This book isn’t shared any more</h1><p>Whoever sent the link has stopped sharing it.</p></section>
+
+  <nav class="bar" id="bar" hidden aria-label="Pages">
+    <button class="nb" type="button" id="prev" aria-label="Previous page"><svg><use href="#i-prev"/></svg></button>
+    <button class="play" type="button" id="play" hidden><svg class="ico"><use href="#i-play"/></svg><span id="play-l">Read to me</span></button>
+    <span class="where" id="where"></span>
+    <button class="nb" type="button" id="next" aria-label="Next page"><svg><use href="#i-next"/></svg></button>
+  </nav>
+</main>
+<audio id="player" preload="auto" playsinline></audio>
+<script type="module" src="/book/book.js"></script>
+</body>
+</html>

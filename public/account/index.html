@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Account</title>
+<link rel="stylesheet" href="/grown.css">
+</head>
+<body>
+<header class="bar"><a class="mark" href="/" data-app-name></a><nav><button type="button" id="open-app"><span>Open <span data-app-name></span></span></button><button type="button" id="signout">Sign out</button></nav></header>
+<main class="wrap" id="main" aria-live="polite">
+  <section class="sheet" id="loading"><p class="soft">Opening your account…</p></section>
+
+  <section class="sheet" id="locked" hidden>
+    <h1>Grown-ups only</h1>
+    <p>Enter the parent password to see the account.</p>
+    <button class="btn" type="button" id="unlock">Enter password</button>
+  </section>
+
+  <!-- Before the first payment: the plan, and what paying also does -->
+  <section class="sheet" id="start" hidden aria-labelledby="start-h">
+    <h1 id="start-h">Start your plan</h1>
+    <p class="lede"><b data-price></b> a month, for the whole family.</p>
+    <ul class="lines" id="includes"></ul>
+    <p id="paint-note">Pictures can take a few minutes to paint, longer when lots of families are writing. Kids keep writing while they paint, and they appear on their own.</p>
+    <p class="note">Paying also confirms you’re the parent or guardian. There’s no separate charge for that. Until it’s done, kids can’t write, record or save anything.</p>
+    <div class="row"><button class="btn" type="button" id="checkout">Continue to payment</button><span class="soft small">Cancel any time. Sold by <span data-seller></span>.</span></div>
+    <p class="err" role="alert" hidden id="start-err" style="margin-top:14px"></p>
+  </section>
+
+  <section class="sheet" id="confirming" hidden>
+    <h1>Confirming your payment</h1>
+    <p class="soft" id="confirming-p">This usually takes a few seconds.</p>
+  </section>
+
+  <section class="sheet" id="writers-sec" hidden aria-labelledby="writers-h">
+    <h2 id="writers-h">Writers</h2>
+    <p class="soft" id="writers-p">Each writer gets a shelf. A first name or a nickname is plenty.</p>
+    <ul class="writers" id="writers"></ul>
+    <form class="addw" id="addw" autocomplete="off">
+      <input name="name" maxlength="24" placeholder="First name or nickname" aria-label="New writer" autocapitalize="words">
+      <button class="btn" type="submit">Add writer</button>
+    </form>
+    <p class="err" role="alert" hidden id="writers-err" style="margin-top:14px"></p>
+    <div class="row" style="margin-top:20px" id="to-studio-row" hidden><button class="btn" type="button" id="to-studio"><span>Open <span data-app-name></span></span></button></div>
+  </section>
+
+  <section class="sheet" id="month-sec" hidden aria-labelledby="month-h">
+    <h2 id="month-h">This month</h2>
+    <p id="month-say"></p>
+    <div class="meter" id="meter" role="meter" aria-labelledby="month-h" aria-valuemin="0" aria-valuemax="100"><i></i></div>
+    <dl class="kv" id="month-kv"></dl>
+    <p class="soft small" id="month-reset"></p>
+  </section>
+
+  <section class="sheet" id="plan-sec" hidden aria-labelledby="plan-h">
+    <h2 id="plan-h">Plan and billing</h2>
+    <dl class="kv" id="plan-kv"></dl>
+    <div class="row"><button class="btn quiet" type="button" id="portal">Billing and invoices</button></div>
+    <p class="soft small" style="margin-top:14px">Sold by <span data-seller></span>. Payments are handled by Stripe.</p>
+  </section>
+
+  <section class="sheet" id="rec-sec" hidden aria-labelledby="rec-h">
+    <h2 id="rec-h">Recordings</h2>
+    <p>“Read it to me” lets a writer record themselves reading their book, so it plays in their own voice. It’s off until you turn it on. Talking to write is never kept.</p>
+    <label class="check"><input type="checkbox" id="rec"><span>Keep “Read it to me” recordings with the books</span></label>
+    <p class="soft small" id="rec-say"></p>
+  </section>
+
+  <section class="sheet" id="stats-sec" hidden aria-labelledby="stats-h">
+    <h2 id="stats-h">Help improve <span data-app-name></span></h2>
+    <p>Send anonymous usage, like which buttons get used and what breaks. Words, names and pictures are hidden before anything leaves this device. Off unless you turn it on, on this device only.</p>
+    <label class="check"><input type="checkbox" id="stats"><span>Share anonymous usage from this device</span></label>
+  </section>
+
+  <section class="sheet" id="data-sec" hidden aria-labelledby="data-h">
+    <h2 id="data-h">Your family’s data</h2>
+    <p>Download every book, picture and recording, or delete the account and everything in it.</p>
+    <div class="row"><button class="btn quiet" type="button" id="export">Download everything</button><button class="btn quiet" type="button" id="delete">Delete account</button></div>
+    <form id="del-form" hidden style="margin-top:20px">
+      <p class="err" style="background:#f3d9d2">This deletes every writer, book, picture and recording, and cancels the plan. It can’t be undone.</p>
+      <label class="field"><span>Type DELETE to confirm</span><input name="confirm" autocomplete="off" spellcheck="false"></label>
+      <div class="row"><button class="btn danger" type="submit">Delete everything</button><button class="link" type="button" id="del-cancel">Keep my account</button></div>
+    </form>
+    <p class="err" role="alert" hidden id="data-err" style="margin-top:14px"></p>
+  </section>
+
+  <section class="sheet" id="gone" hidden><h1>Account deleted</h1><p>Everything is gone and the plan is cancelled.</p><a class="btn" href="/home/">Done</a></section>
+</main>
+<footer class="foot"><span><span data-app-name></span> is sold by <span data-seller></span>.</span><a href="/legal/privacy">Privacy</a><a href="/legal/terms">Terms</a><a href="/legal/parents">Notice to parents</a></footer>
+<script type="module" src="/account/account.js"></script>
+</body>
+</html>

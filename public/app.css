@@ -1,0 +1,440 @@
+/* The app. Layout: "The Storybook Desk".
+   Every colour, font and shadow comes from the contract tokens (CONTRACT.md) or a color-mix of them, so any
+   /themes/<name>.css can be swapped in. Tone: fun and exploratory, not babyish. Real objects
+   (a bookcase, paper, ribbon bookmarks, a highlighter); motion settles like objects do and never boings.
+   The Write surface's own styles are in write.css. */
+
+:root {
+  --m: var(--motion-scale, 1);
+  --settle: cubic-bezier(.2, .8, .25, 1);
+  --lip: color-mix(in srgb, var(--ink) 22%, transparent);
+  --lip-accent: color-mix(in srgb, var(--accent) 55%, var(--ink));
+  --plank: color-mix(in srgb, var(--accent-3) 45%, var(--ink-soft));
+  --plank-dark: color-mix(in srgb, var(--plank) 70%, var(--ink));
+  --case-back: color-mix(in srgb, var(--bg-2) 82%, var(--ink));
+  --rule: color-mix(in srgb, var(--accent-2) 22%, transparent);
+  --margin-line: color-mix(in srgb, var(--accent) 35%, transparent);
+  --hard: color-mix(in srgb, var(--accent) 88%, var(--ink));
+  --gutter: 28px;
+  /* The desk (Alan, 2026-11-02: "the view port is too small… I should be able to see 2-4-5 as much text"): slim chrome,
+     the sheet takes the rest of the screen, wider on wide screens. */
+  --top-h: 64px;       /* header with the ribbons */
+  --side-w: 248px;     /* the tools column beside the sheet */
+  --ws-max: 1480px;    /* the whole desk on a wide screen */
+  --back-w: 112px;     /* the "Shelf" chip; the story-helper chip sits right of it */
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: var(--font-body); color: var(--ink);
+  background-color: var(--bg); background-image: var(--pattern);
+  overflow: hidden; -webkit-tap-highlight-color: transparent; -webkit-font-smoothing: antialiased;
+}
+button, input, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; border: 0; background: none; padding: 0; }
+svg { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+svg .fill { fill: currentColor; stroke: none; }
+:focus-visible { outline: 4px solid var(--accent); outline-offset: 4px; }
+[hidden] { display: none !important; }
+
+#app { position: fixed; inset: 0; }
+.screen { position: absolute; inset: 0; display: none; flex-direction: column; }
+.screen.on { display: flex; }
+.screen.enter { animation: arrive .45s var(--settle) both; }
+@keyframes arrive { from { opacity: 0; transform: translateY(calc(16px * var(--m))); } }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- shared controls ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 54px; padding: 0 22px; border-radius: var(--radius);
+  font-family: var(--font-display); font-size: 19px;
+  background: var(--surface); color: var(--ink); box-shadow: 0 4px 0 var(--lip);
+  transition: transform .2s var(--settle), box-shadow .2s;
+}
+.btn svg { font-size: 22px; }
+.btn:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--lip); transition-duration: .08s; }
+.btn.primary { background: var(--accent); color: var(--on-accent); box-shadow: 0 4px 0 var(--lip-accent); }
+.btn.small { min-height: 46px; padding: 0 14px; font-size: 16px; gap: 7px; }
+.btn.small svg { font-size: 19px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 8px; height: 52px; padding: 0 18px 0 12px;
+  border-radius: var(--radius); background: var(--surface); box-shadow: 0 4px 0 var(--lip);
+  font-family: var(--font-display); font-size: 18px; transition: transform .2s var(--settle);
+}
+.chip svg { font-size: 24px; }
+.chip:active { transform: translateY(3px); }
+.chip.busy { opacity: .7; }
+@media (hover: hover) {
+  .btn:hover, .chip:hover { transform: translateY(-2px); }
+}
+
+/* ---------- 0. opening ---------- */
+.boot { align-items: center; justify-content: center; }
+.boot-mark { width: 74px; height: 74px; border-radius: 50%; border: 4px solid color-mix(in srgb, var(--ink) 15%, transparent); border-top-color: var(--accent); animation: spin 1.1s linear infinite; }
+
+/* ---------- 1. passcode: a closed book with a clasp ---------- */
+.lock { align-items: center; justify-content: center; }
+.lock-wrap { display: flex; align-items: center; gap: 72px; }
+.closed-book { position: relative; width: 360px; height: 480px; perspective: 1600px; }
+.cover-inside {
+  position: absolute; inset: 0; border-radius: 6px 16px 16px 6px; background: var(--surface);
+  background-image: repeating-linear-gradient(to bottom, transparent 0 34px, var(--rule) 34px 36px);
+  box-shadow: var(--shadow-lg);
+}
+.cover-front {
+  position: absolute; inset: 0; z-index: 2; border-radius: 6px 16px 16px 6px;
+  background: var(--accent); color: var(--on-accent);
+  box-shadow: var(--shadow-lg), inset 18px 0 0 var(--hard);
+  transform-origin: 0 50%; transition: transform 1.1s cubic-bezier(.6, .05, .25, 1);
+}
+.cover-frame {
+  position: absolute; inset: 30px 30px 30px 44px; border-radius: 10px;
+  border: 3px solid color-mix(in srgb, var(--on-accent) 55%, transparent);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; text-align: center;
+}
+.cover-frame::before { content: ""; position: absolute; inset: 8px; border-radius: 6px; border: 1px solid color-mix(in srgb, var(--on-accent) 35%, transparent); }
+.cover-emblem { width: 112px; height: 112px; margin-bottom: 8px; border-radius: 50%; display: grid; place-items: center; font-size: 56px; border: 3px solid color-mix(in srgb, var(--on-accent) 55%, transparent); }
+.cover-emblem svg { stroke-width: 1.7; }
+.cover-word { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 64px; line-height: 1; letter-spacing: -0.02em; }
+.cover-sub { margin: 0; font-size: 19px; letter-spacing: .04em; }
+.clasp {
+  position: absolute; right: -22px; top: 50%; width: 64px; height: 300px; margin-top: -150px;
+  border-radius: 14px; background: var(--accent-3); box-shadow: var(--shadow);
+  display: flex; flex-direction: column; align-items: center; justify-content: space-evenly;
+  transition: transform .6s var(--settle), opacity .4s;
+}
+.clasp i { width: 30px; height: 30px; border-radius: 50%; background: color-mix(in srgb, var(--ink) 18%, var(--accent-3)); box-shadow: inset 0 3px 0 var(--lip); transition: transform .25s var(--settle), background-color .2s; }
+.clasp i.on { background: var(--surface); transform: scale(1.15); box-shadow: 0 0 0 4px color-mix(in srgb, var(--surface) 45%, transparent); }
+.clasp.bad { animation: rattle .45s; }
+@keyframes rattle { 25%, 75% { transform: translateY(calc(-7px * var(--m))); } 50% { transform: translateY(calc(7px * var(--m))); } }
+.closed-book.open .clasp { transform: translateX(calc(60px * var(--m))); opacity: 0; }
+.closed-book.open .cover-front { transform: rotateY(-155deg); }
+.lock-ask { margin: 0 0 22px; font-family: var(--font-display); font-size: 30px; line-height: 1.1; }
+.pad { display: grid; grid-template-columns: repeat(3, 82px); gap: 16px 14px; }
+.pad button {
+  height: 78px; border-radius: 14px; background: var(--surface); color: var(--ink);
+  font-family: var(--font-display); font-size: 34px;
+  box-shadow: 0 6px 0 var(--blk, var(--accent-2));
+  transition: transform .15s var(--settle), box-shadow .15s;
+}
+.pad button:nth-child(3n + 1) { --blk: var(--accent); }
+.pad button:nth-child(3n + 2) { --blk: var(--accent-3); }
+.pad button:nth-child(3n) { --blk: var(--accent-2); }
+.pad button.del svg { font-size: 32px; }
+.pad button:active, .pad button.hit { transform: translateY(5px); box-shadow: 0 1px 0 var(--blk); transition-duration: .06s; }
+
+/* ---------- 2. the bookcase ---------- */
+.shelf { overflow-y: auto; padding: 30px var(--gutter) 130px; }
+.case-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 26px; }
+.case-title { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: clamp(42px, 5.6vw, 72px); line-height: 1; letter-spacing: -0.025em; }
+.tags { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; align-items: center; padding-bottom: 6px; }
+.tag {
+  position: relative; height: 54px; padding: 0 22px 0 36px; display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--font-display); font-size: 21px;
+  background: color-mix(in srgb, var(--tag, var(--surface)) 55%, var(--surface));
+  clip-path: polygon(18px 0, 100% 0, 100% 100%, 18px 100%, 0 50%);
+  transform: rotate(calc(var(--rot, 2deg) * var(--m)));
+  transition: transform .3s var(--settle), background-color .2s;
+}
+.tag::before { content: ""; position: absolute; left: 16px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: var(--bg); }
+.tag.on { background: var(--tag); transform: rotate(calc(-2deg * var(--m))) translateY(calc(-4px * var(--m))); }
+.tag.add { padding: 0 16px 0 32px; font-size: 24px; background: var(--surface); }
+.tag .rm { margin: 0 -10px 0 8px; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; background: color-mix(in srgb, var(--ink) 12%, transparent); }
+.tag-new { display: inline-flex; align-items: center; gap: 6px; height: 56px; padding: 0 6px 0 16px; border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); }
+.tag-new input { width: 140px; min-width: 0; border: 0; outline: none; background: none; font-family: var(--font-display); font-size: 21px; color: var(--ink); }
+.tag-new button { width: 46px; height: 46px; border-radius: 8px; display: grid; place-items: center; font-size: 22px; background: var(--accent); color: var(--on-accent); }
+.tag-new button.cancel { background: var(--surface-2); color: var(--ink); }
+.case { border-radius: 14px; background: var(--case-back); border: 14px solid var(--plank); border-bottom: 0; box-shadow: var(--shadow-lg); }
+.row { position: relative; display: flex; align-items: flex-end; gap: 6px; height: 284px; padding: 28px 22px 0; border-bottom: 20px solid var(--plank); box-shadow: 0 6px 0 var(--plank-dark); }
+.row + .row { margin-top: 6px; }
+.spine {
+  position: relative; flex: none; width: var(--w, 64px); height: var(--h, 240px);
+  border-radius: 5px 5px 3px 3px; background: var(--col, var(--accent));
+  display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 14px 0;
+  box-shadow: inset -8px 0 0 color-mix(in srgb, var(--col) 75%, var(--ink)), inset 0 12px 0 color-mix(in srgb, var(--col) 70%, var(--ink));
+  transform-origin: 50% 100%; transform: rotate(calc(var(--lean, 0deg) * var(--m)));
+  transition: transform .35s var(--settle);
+}
+.spine .band { flex: none; width: 100%; height: 12px; margin-top: 10px; border-top: 2px solid color-mix(in srgb, var(--surface) 55%, transparent); border-bottom: 2px solid color-mix(in srgb, var(--surface) 55%, transparent); }
+.spine .label {
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  max-height: calc(var(--h, 240px) - 64px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  padding: 12px 6px; border-radius: 4px; background: var(--surface); color: var(--ink);
+  font-family: var(--font-display); font-size: 15px; line-height: 1.05;
+}
+.spine:active { transform: translateY(calc(-14px * var(--m))); }
+.faceout {
+  position: relative; flex: none; width: var(--fw, 200px); height: var(--fh, 262px);
+  border-radius: 5px 12px 12px 5px; overflow: hidden; text-align: left;
+  background: var(--accent); color: var(--on-accent);
+  box-shadow: inset 10px 0 0 var(--hard), var(--shadow);
+  display: flex; flex-direction: column; justify-content: flex-end;
+  transition: transform .35s var(--settle);
+  transform: rotate(calc(-1deg * var(--m)));
+}
+.faceout:active { transform: scale(.98); }
+.faceout img { position: absolute; inset: 0 0 0 10px; width: calc(100% - 10px); height: 100%; object-fit: cover; object-position: 28% 40%; }
+.faceout .ft { position: relative; margin: 10px 10px 10px 20px; padding: 10px 12px; border-radius: 8px; background: var(--surface); color: var(--ink); font-family: var(--font-display); font-size: 19px; line-height: 1.1; }
+.faceout.new { background: var(--surface); color: var(--ink); box-shadow: inset 10px 0 0 var(--surface-2), var(--shadow); justify-content: center; align-items: center; gap: 12px; }
+.faceout.new::after { content: ""; position: absolute; inset: 14px 14px 14px 24px; border-radius: 8px; border: 2px dashed color-mix(in srgb, var(--ink) 25%, transparent); }
+.faceout.new .plus { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; font-size: 40px; background: var(--accent); color: var(--on-accent); }
+.faceout.new b { font-family: var(--font-display); font-weight: 400; font-size: 22px; }
+@media (hover: hover) {
+  .spine:hover { transform: translateY(calc(-10px * var(--m))); }
+  .faceout:hover { transform: translateY(calc(-8px * var(--m))) rotate(0deg); }
+}
+.toy { flex: none; align-self: flex-end; font-size: 60px; line-height: 1; margin-left: auto; }
+.toy + .toy { margin-left: 18px; }
+.toy.first { margin-left: 0; }
+.row-empty { align-self: center; margin: 0 auto; max-width: 30em; padding: 14px 20px; border-radius: 3px; background: var(--surface); box-shadow: var(--shadow); transform: rotate(calc(-1.5deg * var(--m))); font-family: var(--font-display); font-size: 20px; text-align: center; }
+.row-empty::before { content: ""; display: block; width: 70px; height: 20px; margin: -26px auto 8px; background: color-mix(in srgb, var(--accent-2) 40%, transparent); transform: rotate(calc(3deg * var(--m))); }
+.row-empty .btn { margin-top: 10px; }
+.pull { animation: pull .45s var(--settle) forwards; }
+@keyframes pull { to { transform: translateY(calc(-48px * var(--m))) rotate(calc(-5deg * var(--m))) scale(1.04); } }
+.shelved { animation: shelve .5s var(--settle) both; }
+@keyframes shelve { from { opacity: 0; transform: translateY(calc(-24px * var(--m))); } }
+.grownups { position: fixed; right: 16px; bottom: 14px; z-index: 31; display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.grownups-btn { min-height: 36px; padding: 6px 12px; border-radius: 99px; font-size: 13px; color: var(--ink-soft); background: color-mix(in srgb, var(--surface) 72%, transparent); }
+.grownups-panel { width: 290px; padding: 14px 16px 16px; border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-lg); font-size: 15px; display: flex; flex-direction: column; gap: 10px; }
+.gp-h { margin: 0; font-weight: 700; }
+.gp-themes { display: flex; flex-wrap: wrap; gap: 6px; }
+.gp-themes button { min-height: 36px; padding: 4px 11px; border-radius: 99px; font-size: 14px; background: var(--surface-2); }
+.gp-themes button.on { background: var(--accent); color: var(--on-accent); }
+.gp-row { display: flex; align-items: center; gap: 8px; }
+.gp-row input { width: 22px; height: 22px; }
+.gp-link { color: var(--ink); }
+
+/* ---------- 3. the desk ---------- */
+.desk-top { position: relative; z-index: 3; flex: none; display: grid; grid-template-columns: 1fr auto 1fr; align-items: start; height: var(--top-h); padding: 0 var(--gutter); }
+.desk-top .back { margin-top: 10px; justify-self: start; height: 44px; font-size: 17px; }
+.desk-top .back svg { font-size: 20px; }
+.ribbons { display: flex; gap: 12px; align-items: flex-start; }
+.ribbon {
+  position: relative; width: 108px; height: var(--len, 48px); padding-bottom: 13px;
+  display: flex; align-items: flex-end; justify-content: center;
+  background: var(--rib);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% calc(100% - 10px), 0 100%);
+  transform-origin: 50% 0; transition: height .4s var(--settle);
+}
+.ribbon .patch {
+  display: flex; align-items: center; justify-content: center; gap: 6px; width: 90px; padding: 5px 0;
+  border-radius: 6px; background: var(--surface); color: var(--ink);
+  font-family: var(--font-display); font-size: 15px; line-height: 1.1;
+}
+.ribbon .patch svg { font-size: 17px; }
+.ribbon.on { --len: 60px; }
+.ribbon.swing { animation: swing .9s cubic-bezier(.3, .6, .4, 1); }
+@keyframes swing { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(calc(4deg * var(--m))); } 55% { transform: rotate(calc(-2deg * var(--m))); } 80% { transform: rotate(calc(.8deg * var(--m))); } }
+@media (hover: hover) { .ribbon:not(.on):hover { --len: 54px; } }
+.name-tag { justify-self: end; margin-top: 12px; padding: 7px 14px; border-radius: 8px; background: var(--surface); box-shadow: var(--shadow); font-family: var(--font-display); font-size: 18px; transform: rotate(calc(1.5deg * var(--m))); }
+
+.table { position: relative; flex: 1; min-height: 0; display: grid; grid-template-rows: minmax(0, 1fr); grid-template-columns: minmax(0, 1fr); place-items: center; padding: 2px var(--gutter) 14px; }
+#write-surface { display: contents; }
+#app[data-step="read"] #write-surface, #app[data-step="write"] #read-surface { display: none; }
+@keyframes caret { 50% { opacity: 0; } }
+/* Read mode (read.js, read.css): the book gets the whole screen; the header floats over the picture and fades with
+   the reader's own controls while it reads. The story helper is for writing, so it waits in Write. */
+#read-surface { position: absolute; inset: 0; }
+#app[data-step="read"] .table { padding: 0; }
+#app[data-step="read"] .desk-top { position: absolute; left: 0; right: 0; top: 0; z-index: 25; height: auto; display: flex; align-items: flex-start; gap: 12px; padding: 0 14px; pointer-events: none; transition: opacity .4s ease; }
+#app[data-step="read"] .desk-top > * { pointer-events: auto; }
+#app[data-step="read"] .desk-top .back { box-shadow: 0 2px 10px -3px rgba(0, 0, 0, .3); }
+#app[data-step="read"] .ribbon { --len: 42px; width: 92px; }
+#app[data-step="read"] .ribbon.on { --len: 50px; }
+#app[data-step="read"] .ribbon .patch { width: 78px; }
+#app[data-step="read"] .name-tag, #app[data-step="read"] .chat { display: none !important; }
+#app[data-step="read"][data-chrome="off"] .desk-top { opacity: 0; }
+#app[data-step="read"][data-chrome="off"] .desk-top > * { pointer-events: none; }
+/* After a sheet or popover closes, the next clicks for ~0.65 s land here instead of on what was under the close button. */
+.click-shield { position: fixed; inset: 0; z-index: 9999; }
+.act { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.side-btn { width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center; font-size: 26px; background: var(--surface-2); transition: transform .2s var(--settle); }
+.side-btn:active { transform: scale(.94); }
+.side-btn.on { background: var(--accent); color: var(--on-accent); }
+.side-btn.ghost, .side-btn.hide { visibility: hidden; }
+.press {
+  position: relative; width: 104px; height: 104px; border-radius: 32px;
+  display: grid; place-items: center; font-size: 46px;
+  background: var(--accent); color: var(--on-accent); box-shadow: 0 7px 0 var(--lip-accent);
+  transition: transform .2s var(--settle), box-shadow .2s, border-radius .35s var(--settle);
+}
+.press:active { transform: translateY(5px); box-shadow: 0 2px 0 var(--lip-accent); transition-duration: .08s; }
+.press .ico { position: relative; z-index: 1; }
+.press.rec { border-radius: 50%; }
+.lvl-ring { position: absolute; pointer-events: none; display: none; }
+.press.rec .lvl-ring { display: block; inset: -14px; z-index: 0; border-radius: 50%; background: color-mix(in srgb, var(--accent) 26%, transparent); transform: scale(calc(.82 + var(--lvl, 0) * .6)); transition: transform .1s linear; }
+.press.busy { cursor: progress; }
+.press.busy .lvl-ring {
+  display: block; inset: -10px; border-radius: 50%;
+  background: conic-gradient(from 0deg, var(--accent-2), transparent 75%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px)); mask: radial-gradient(farthest-side, transparent calc(100% - 7px), #000 calc(100% - 6px));
+  animation: spin 1.1s linear infinite;
+}
+.press-lbl { min-height: 1.2em; font-family: var(--font-display); font-size: 18px; white-space: nowrap; }
+
+/* ---------- chat: a note on the desk ---------- */
+.chat { position: fixed; left: var(--gutter); bottom: 20px; z-index: 30; width: 330px; display: none; }
+#app[data-screen="shelf"] .chat, #app[data-screen="desk"] .chat { display: block; }
+.chat-open { display: none; }
+.chat-bar {
+  position: relative; display: flex; align-items: center; gap: 6px; height: 58px; padding: 0 6px;
+  border-radius: 6px; background: var(--surface); box-shadow: var(--shadow);
+  transform: rotate(calc(-1deg * var(--m))); transition: transform .3s var(--settle);
+}
+.chat-bar::before { content: ""; position: absolute; top: -10px; left: 18px; width: 64px; height: 22px; background: color-mix(in srgb, var(--accent-2) 40%, transparent); transform: rotate(calc(-6deg * var(--m))); }
+.chat-bar:focus-within { transform: rotate(0) translateY(-2px); box-shadow: var(--shadow), 0 0 0 4px var(--accent); }
+.chat-ico { flex: none; width: 44px; height: 44px; border-radius: 8px; display: grid; place-items: center; font-size: 22px; background: color-mix(in srgb, var(--accent-3) 55%, var(--surface)); color: var(--ink); cursor: pointer; }
+.chat-bar input { flex: 1; min-width: 0; border: 0; outline: none; background: none; font-size: 17px; }
+.chat-bar input::placeholder { color: var(--ink-soft); }
+.chat-send { flex: none; width: 46px; height: 46px; border-radius: 8px; display: grid; place-items: center; font-size: 22px; background: var(--accent); color: var(--on-accent); }
+.chat-send:active { transform: scale(.92); }
+.chat-panel {
+  position: absolute; left: 0; bottom: 74px; width: 390px; max-height: min(470px, 62vh);
+  display: flex; flex-direction: column; border-radius: 8px; overflow: hidden;
+  background-color: var(--surface);
+  background-image: repeating-linear-gradient(to bottom, transparent 0 32px, var(--rule) 32px 34px);
+  box-shadow: var(--shadow-lg);
+  transform-origin: 20px 100%; transform: translateY(16px) scale(.96); opacity: 0; pointer-events: none;
+  transition: transform .3s var(--settle), opacity .2s;
+}
+.chat.open .chat-panel { transform: none; opacity: 1; pointer-events: auto; }
+.chat-head { display: flex; align-items: center; gap: 10px; padding: 14px 12px 10px 18px; font-family: var(--font-display); font-size: 20px; background: var(--surface); }
+.chat-head b { flex: 1; font-weight: 400; }
+.chat-head .helper { font-size: 22px; color: var(--accent); }
+.x { width: 44px; height: 44px; border-radius: 8px; display: grid; place-items: center; font-size: 20px; background: var(--surface-2); }
+.chat-log { flex: 1; overflow-y: auto; padding: 6px 16px 18px; display: flex; flex-direction: column; gap: 10px; }
+.msg { max-width: 86%; padding: 11px 15px; border-radius: 12px; font-size: 17px; line-height: 1.4; animation: arrive .3s var(--settle) both; }
+.msg.bot { background: var(--surface-2); border-bottom-left-radius: 4px; }
+.msg.me { align-self: flex-end; background: var(--accent); color: var(--on-accent); border-bottom-right-radius: 4px; }
+.msg.bot.err { background: color-mix(in srgb, var(--accent) 18%, var(--surface-2)); }
+.msg .btn { margin-top: 8px; }
+
+/* On the desk the helper is a chip in the header. Open, it is DOCKED, never over the book (Sol's report #8,
+   2026-11-02): a column at the right on wide screens, a panel under the book on narrow ones; the book makes room. */
+#app[data-screen="desk"] { --chat-w: 340px; --chat-h: 46vh; }
+#app[data-screen="desk"].helper-open .table { padding-right: calc(var(--chat-w) + var(--gutter) + 14px); }
+#app[data-screen="desk"] .chat { left: auto; right: var(--gutter); top: calc(var(--top-h) + 2px); bottom: 14px; width: var(--chat-w); display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+#app[data-screen="desk"] .chat > * { pointer-events: auto; }
+#app[data-screen="desk"] .chat-open {
+  position: fixed; top: 10px; left: calc(var(--gutter) + var(--back-w) + 10px); z-index: 31;
+  display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 14px 0 10px; border-radius: var(--radius);
+  background: color-mix(in srgb, var(--accent-3) 45%, var(--surface)); box-shadow: 0 4px 0 var(--lip);
+  font-family: var(--font-display); font-size: 16px; transition: transform .2s var(--settle);
+}
+#app[data-screen="desk"] .chat-open svg { font-size: 21px; }
+#app[data-screen="desk"] .chat-open:active { transform: translateY(3px); }
+#app[data-screen="desk"] .chat.open .chat-open { background: var(--surface); box-shadow: 0 0 0 3px var(--accent-3); }
+#app[data-screen="desk"] .chat:not(.open) .chat-panel, #app[data-screen="desk"] .chat:not(.open) .chat-bar { display: none; }
+#app[data-screen="desk"] .chat-panel { position: relative; left: auto; bottom: auto; width: auto; flex: 1; min-height: 0; max-height: none; transform: none; opacity: 1; animation: arrive .25s var(--settle) both; }
+#app[data-screen="desk"] .chat-bar { transform: none; }
+#app[data-screen="desk"] .chat-bar .chat-ico { display: none; }
+#app[data-screen="desk"] .chat-bar input { padding-left: 10px; }
+.dots i { display: inline-block; width: 8px; height: 8px; margin-right: 4px; border-radius: 50%; background: var(--ink-soft); animation: blink 1s ease-in-out infinite; }
+.dots i:nth-child(2) { animation-delay: .15s; } .dots i:nth-child(3) { animation-delay: .3s; }
+@keyframes blink { 50% { opacity: .25; } }
+
+/* ---------- toast ---------- */
+.toast {
+  position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 60; display: flex; align-items: center; gap: 12px;
+  max-width: min(680px, calc(100vw - 28px)); padding: 8px 8px 8px 20px; border-radius: 12px;
+  background: var(--ink); color: var(--surface); box-shadow: var(--shadow-lg); font-size: 18px; line-height: 1.3;
+  animation: drop-in .35s var(--settle) both;
+}
+@keyframes drop-in { from { opacity: 0; transform: translate(-50%, calc(-16px * var(--m))); } }
+.toast .x { flex: none; background: color-mix(in srgb, var(--surface) 18%, transparent); color: var(--surface); }
+.toast .btn { flex: none; }
+
+/* ---------- short screens (a laptop browser window, Alan's 1280×529): the desk keeps the height for words ---------- */
+@media (max-height: 640px) {
+  .lock-wrap { gap: 48px; }
+  .closed-book { width: 270px; height: 360px; }
+  .cover-word { font-size: 50px; }
+  .cover-emblem { width: 84px; height: 84px; font-size: 42px; }
+  .clasp { height: 230px; margin-top: -115px; }
+  .clasp i { width: 26px; height: 26px; }
+  .lock-ask { font-size: 24px; margin-bottom: 14px; }
+  .pad { grid-template-columns: repeat(3, 74px); gap: 12px; }
+  .pad button { height: 62px; font-size: 28px; }
+  .shelf { padding-top: 18px; }
+  .case-top { margin-bottom: 16px; }
+  .case-title { font-size: clamp(36px, 4.4vw, 52px); }
+  .tag { height: 46px; font-size: 18px; }
+
+  .press { width: 64px; height: 64px; border-radius: 20px; font-size: 30px; }
+  .side-btn { width: 48px; height: 48px; font-size: 22px; border-radius: 12px; }
+  .press-lbl { font-size: 16px; }
+}
+
+@media (max-width: 999px) {
+  #app[data-screen="desk"] .chat-open { width: 44px; padding: 0; justify-content: center; }
+  #app[data-screen="desk"] .chat-open span { display: none; }
+  #app[data-screen="desk"].helper-open .table { padding-right: var(--gutter); padding-bottom: calc(var(--chat-h) + 10px); }
+  #app[data-screen="desk"] .chat { left: var(--gutter); right: var(--gutter); top: auto; bottom: 8px; width: auto; height: var(--chat-h); }
+}
+
+/* ---------- phone ---------- */
+@media (max-width: 760px) {
+  :root { --gutter: 14px; --top-h: 58px; --back-w: 46px; }
+  .lock-wrap { flex-direction: column; gap: 26px; }
+  .closed-book { width: 230px; height: 300px; }
+  .cover-frame { inset: 18px 18px 18px 30px; gap: 4px; }
+  .cover-emblem { width: 70px; height: 70px; font-size: 34px; margin-bottom: 4px; }
+  .cover-word { font-size: 40px; }
+  .cover-sub { font-size: 15px; }
+  .clasp { width: 44px; height: 200px; margin-top: -100px; right: -16px; }
+  .clasp i { width: 22px; height: 22px; }
+  .lock-ask { font-size: 24px; text-align: center; margin-bottom: 16px; }
+  .pad { grid-template-columns: repeat(3, 76px); gap: 12px; }
+  .pad button { height: 64px; font-size: 30px; }
+
+  .shelf { padding-top: 22px; }
+  .case-top { flex-direction: column; align-items: flex-start; gap: 14px; margin-bottom: 18px; }
+  .case-title { font-size: 42px; }
+  .tags { justify-content: flex-start; }
+  .tag { height: 48px; font-size: 18px; }
+  .tag-new input { width: 110px; }
+  .case { border-width: 10px; }
+  .row { height: 216px; padding: 18px 10px 0; gap: 5px; border-bottom-width: 16px; }
+  .spine .label { font-size: 13px; padding: 8px 3px; white-space: normal; text-overflow: clip; max-height: calc(var(--h) - 56px); }
+  .faceout .ft { font-size: 15px; margin: 6px 6px 6px 14px; padding: 7px 8px; }
+  .faceout.new .plus { width: 54px; height: 54px; font-size: 30px; }
+  .faceout.new b { font-size: 17px; }
+  .toy { font-size: 44px; }
+  .row-empty { font-size: 17px; }
+  .grownups { bottom: 18px; }
+
+  .desk-top { grid-template-columns: auto 1fr auto; gap: 6px; }
+  .desk-top .back { margin-top: 8px; height: 44px; padding: 0 10px; }
+  .desk-top .back span { display: none; }
+  .ribbons { justify-self: center; gap: 6px; }
+  .ribbon { width: 82px; --len: 44px; padding-bottom: 12px; }
+  .ribbon.on { --len: 54px; }
+  .ribbon .patch { width: 72px; font-size: 13px; padding: 4px 0; gap: 4px; }
+  .ribbon .patch svg { font-size: 15px; }
+  .name-tag { display: none; } /* whose story it is shows on the shelf; the header keeps room for the helper */
+  #app[data-screen="desk"] .chat-open { top: 8px; left: auto; right: var(--gutter); }
+  #app[data-screen="desk"] .chat-panel .chat-head { padding: 8px 8px 6px 14px; font-size: 18px; }
+
+  .table { padding: 0 8px 10px; }
+  .press { width: 72px; height: 72px; border-radius: 22px; font-size: 34px; }
+  .press-lbl { font-size: 15px; }
+  .side-btn { width: 50px; height: 50px; font-size: 22px; }
+
+  #app[data-screen="shelf"] .chat { bottom: 18px; width: auto; }
+  #app[data-screen="shelf"] .chat:not(.open) .chat-bar { width: 58px; height: 58px; padding: 0; justify-content: center; }
+  #app[data-screen="shelf"] .chat:not(.open) .chat-bar input, #app[data-screen="shelf"] .chat:not(.open) .chat-send { display: none; }
+  #app[data-screen="shelf"] .chat:not(.open) .chat-ico { width: 58px; height: 58px; font-size: 26px; }
+  #app[data-screen="shelf"] .chat.open { right: var(--gutter); }
+  #app[data-screen="shelf"] .chat.open .chat-panel { width: 100%; max-height: 64vh; }
+  .toast { font-size: 16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --m: 0; }
+  *, *::before, *::after {
+    animation-duration: 1ms !important; animation-iteration-count: 1 !important; animation-delay: 0s !important;
+    transition-duration: 1ms !important; transition-delay: 0s !important; scroll-behavior: auto !important;
+  }
+}

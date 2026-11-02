@@ -1,0 +1,12 @@
+node_modules/
+.wrangler/
+.dev.vars*
+!.dev.vars.example
+.env*
+*.local.*
+wrangler.selftest.toml
+e2e/out*/
+e2e/ui/out*/
+__pycache__/
+*.pyc
+.DS_Store
