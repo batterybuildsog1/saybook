@@ -1,7 +1,8 @@
+import { captureServer, accountHash } from "../analytics.js";
 import { now, id, json, body, fail, safeAccount, mediaPrefix, NOTICE_VERSION, testRequest } from './util.js';
 import { usage, allow, charge, finish } from './usage.js';
 import { cancelForDeletion } from './billing.js';
-const TABLES=['shares','stories','scenes','events','settings','usage_ledger','hosted_profiles','hosted_consent','hosted_usage'];
+const TABLES=['analytics_preferences','analytics_milestones','shares','stories','scenes','events','settings','usage_ledger','hosted_profiles','hosted_consent','hosted_usage'];
 const b64=bytes=>{let s='';for(const b of bytes)s+=String.fromCharCode(b);return btoa(s);};
 export function dataExport(env,a) {
  const stream=new ReadableStream({
@@ -57,6 +58,14 @@ export async function purgeAccount(req,env,a) {
 }
 export async function accountRoute(req,env,a,url) {
  const path=url.pathname,m=req.method;
+ if(path==='/api/account/analytics') {
+  if(m==='PUT') {
+   const b=await body(req);if(typeof b.enabled!=='boolean')fail(400,'Choose whether to share usage');
+   await env.DB.prepare('INSERT INTO analytics_preferences(account_id,enabled,at) VALUES(?,?,?) ON CONFLICT(account_id) DO UPDATE SET enabled=excluded.enabled,at=excluded.at').bind(a.account_id,b.enabled?1:0,now()).run();
+  } else if(m!=='GET')fail(405,'Use GET or PUT');
+  const pref=await env.DB.prepare('SELECT enabled FROM analytics_preferences WHERE account_id=?').bind(a.account_id).first();
+  return json({enabled:!!pref?.enabled,account_hash:await accountHash(a.account_id)});
+ }
  if(path==='/api/account' && m==='GET')return json({account:safeAccount(a),usage:await usage(env,a.account_id)});
  if(path==='/api/account'&&m==='DELETE')return deleteAccount(req,env,a);
  if(path==='/api/account/export'&&m==='POST')return dataExport(env,a);
@@ -84,6 +93,7 @@ export async function accountRoute(req,env,a,url) {
    if(profiles.some(p=>p.name===name))fail(409,'Choose a different nickname');
    const writer={name,color};
    await env.DB.prepare('INSERT INTO settings(account_id,writers) VALUES(?,?) ON CONFLICT(account_id) DO UPDATE SET writers=excluded.writers').bind(a.account_id,JSON.stringify([...writers,writer])).run();
+   captureServer(env,'writer_added',{count:profiles.length+1},{accountId:a.account_id});
    return json({...writer,id:name},201);
   }
  }

@@ -27,6 +27,7 @@ export async function scheduled(env) {
   if(page.results.length<100)break;cursor=page.results.at(-1).account_id;
  }
  await env.DB.batch([
+  env.DB.prepare('DELETE FROM contact_limits WHERE expires<?').bind(at),
   env.DB.prepare("DELETE FROM hosted_auth_limits WHERE account_id='' AND expires<?").bind(at),
   env.DB.prepare("DELETE FROM hosted_breakers WHERE account_id='__global__' AND until_at<?").bind(at),
   env.DB.prepare('DELETE FROM hosted_waitlist WHERE expires<?').bind(at),

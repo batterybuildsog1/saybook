@@ -10,6 +10,13 @@ binding = "ASSETS"
 run_worker_first = true
 html_handling = "auto-trailing-slash"
 [vars]
+# Optional analytics: supply your own public project key only after privacy/budget verification.
+# ANALYTICS_KEY = "YOUR_PUBLIC_POSTHOG_PROJECT_KEY"
+ANALYTICS_BUDGET_VERIFIED = "false"
+ANALYTICS_REPLAY = "false"
+ANALYTICS_DEPLOYMENT = "test"
+# CONTACT_FROM = "support@example.com"
+# CONTACT_TO = "owner@example.com"
 MODE = "hosted"
 HOSTED_ALLOWED_COUNTRY = "US"
 HOSTED_MAX_ACCOUNTS = "10"
@@ -60,3 +67,8 @@ max_retries = 3
 enabled = true
 [triggers]
 crons = ["0 9 * * *"]
+
+# Optional contact delivery: enable Email Routing and verify the destination first.
+# [[send_email]]
+# name = "CONTACT_EMAIL"
+# destination_address = "owner@example.com"

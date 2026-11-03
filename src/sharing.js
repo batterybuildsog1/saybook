@@ -1,3 +1,4 @@
+import { captureServer } from "./analytics.js";
 import { APP_NAME } from './config.js';
 import { tenantEnv } from './tenant.js';
 export async function parentGate(req, env) {
@@ -47,6 +48,7 @@ export async function shareRoute(req, env, id) {
   } else result = await env.DB.prepare('INSERT INTO shares (account_id,story_id,token,show_author,created) SELECT ?,?,?,?,? WHERE EXISTS (SELECT 1 FROM stories WHERE account_id=? AND id=?) ON CONFLICT(account_id,story_id) DO UPDATE SET show_author=excluded.show_author')
     .bind(env.account_id, id, token, showAuthor ? 1 : 0, at, env.account_id, id).run();
   if (!result.meta.changes) return Response.json({ error: 'account_unavailable' }, { status: 403 });
+  captureServer(env,"book_shared",{}, {object:id});
   return Response.json(await shareInfo(env, id));
 }
 // No paid call, queue message or mutation is reachable from this public route.

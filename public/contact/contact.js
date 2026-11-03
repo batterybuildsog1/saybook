@@ -1,0 +1,4 @@
+const form=document.querySelector('#contact'),button=form.querySelector('button'),status=document.querySelector('#status');
+let started;
+try{const r=await fetch('/api/contact');if(!r.ok)throw Error();started=(await r.json()).started_at;setTimeout(()=>button.disabled=false,3000);}catch{status.textContent='Please email support@saybook.app.';}
+form.onsubmit=async e=>{e.preventDefault();button.disabled=true;status.textContent='Sending…';try{const r=await fetch('/api/contact',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({email:form.email.value,message:form.message.value,website:form.website.value,started_at:started})});const d=await r.json();if(!r.ok)throw Error(d.error);status.textContent=d.message;form.reset();}catch(e){status.textContent=e.message||'Please email support@saybook.app.';button.disabled=false;}};

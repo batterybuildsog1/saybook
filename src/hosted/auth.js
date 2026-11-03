@@ -1,3 +1,4 @@
+import { captureServer } from "../analytics.js";
 import { enrollment, waitlist } from './enrollment.js';
 import { now, id, random, sha, hex, unhex, encoder, fail, json, body, enabled, safeAccount, NOTICE_VERSION, testRequest, constantEqual, requireCountry } from './util.js';
 const COOKIE = '__Host-storybook';
@@ -13,7 +14,7 @@ export async function passwordHash(password, salt, env) {
  return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt:unhex(salt),iterations:ITERATIONS,hash:'SHA-256'}, key, 256));
 }
 function validatePassword(password) {
- if (typeof password !== 'string' || password.length < 14 || password.length > 256) fail(400, 'weak_password');
+ if (typeof password !== 'string' || password.length < 8 || password.length > 256) fail(400, 'weak_password');
 }
 function emailValue(value) {
  if (typeof value !== 'string' || value.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) fail(400, 'A parent email is required');
@@ -81,8 +82,11 @@ export async function authRoute(req, env, path) {
     env.DB.prepare(`INSERT INTO hosted_accounts(account_id,email,password_hash,password_salt,recovery_hash,created,consent_version,consent_at,recordings_enabled)
     VALUES(?,?,?,?,?,?,?,?,?)`).bind(accountId,email,hash,salt,await sha(recoveryCode),at,NOTICE_VERSION,at,b.recordings_enabled?1:0),
     env.DB.prepare('INSERT INTO hosted_consent(account_id,id,version,action,at) VALUES(?,?,?,?,?)').bind(accountId,id(),NOTICE_VERSION,'parent_notice_accepted',at),
+    env.DB.prepare("UPDATE analytics_population SET signups=signups+1 WHERE id=1 AND ? NOT LIKE '%@example.invalid' AND ? NOT LIKE '%@example.com'").bind(email,email),
    ]);
   } catch(e) { if (/unique/i.test(String(e))) fail(409,'Account could not be created. Try signing in.'); throw e; }
+  await env.DB.prepare('INSERT INTO analytics_preferences(account_id,enabled,at) VALUES(?,?,?)').bind(accountId,b.analytics_consent===true?1:0,at).run();
+  captureServer(env,'signup_started',{}, {accountId});
   return startSession(env,await env.DB.prepare('SELECT * FROM hosted_accounts WHERE account_id=?').bind(accountId).first(),201,recoveryCode);
  }
  if (path === '/auth/login') {

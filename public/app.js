@@ -200,9 +200,7 @@ async function boot() {
   }
   try { await loadWriters(); }
   catch (e) { if (e.status === 401) return; go('shelf'); toast(e.message, { retry: boot }); return; }
-  // Opt-in analytics (analytics.js): off unless the server names a key and a parent switched it on. Child routes
-  // answered, so in hosted the parent's paid consent is in place.
-  import('./analytics.js').then((m) => m.startAnalytics(S.cfg, { surface: 'kid', parentalConsent: true })).catch(() => {});
+  // Child screens never load client analytics or replay.
   if (!S.writers.length) { go('writers'); return; } // first run: "Who's writing?"
   await flushSave(); // anything typed just before a lock-out
   const last = LS.get('story');

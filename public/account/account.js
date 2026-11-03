@@ -3,7 +3,7 @@
 // nothing for kids works until it's confirmed). After: writers, this month's allowance as a gentle meter, billing,
 // recordings, export and delete. "Open Saybook" ends the 15-minute grown-up session before the kids take over.
 import { brand, config, call, askParent, SELLER, priceText, SWATCHES, nextSwatch, normWriters, esc, APP_NAME } from '/kit.js';
-import { analyticsOffered, analyticsChoice, startAnalytics, stopAnalytics, capture } from '/analytics.js';
+
 
 const $ = (s) => document.querySelector(s);
 brand();
@@ -11,7 +11,7 @@ document.querySelectorAll('[data-seller]').forEach((el) => { el.textContent = SE
 document.querySelectorAll('[data-price]').forEach((el) => { el.textContent = priceText(); });
 const params = new URLSearchParams(location.search);
 const NOTICE_VERSION = '2026-11-02';
-const SECTIONS = ['#loading', '#locked', '#start', '#confirming', '#writers-sec', '#month-sec', '#plan-sec', '#rec-sec', '#stats-sec', '#data-sec', '#gone'];
+const SECTIONS = ['#loading', '#locked', '#start', '#confirming', '#writers-sec', '#month-sec', '#plan-sec', '#rec-sec', '#data-sec', '#gone'];
 const only = (...ids) => SECTIONS.forEach((s) => { $(s).hidden = !ids.includes(s); });
 const day = (v, utc = false) => { const d = new Date(typeof v === 'number' && v < 1e12 ? v * 1000 : v); return isNaN(d) ? '' : d.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric', ...(utc ? { timeZone: 'UTC' } : {}) }); };
 let A = null, writers = [];
@@ -54,9 +54,8 @@ function render() {
     only('#start');
     return;
   }
-  only('#writers-sec', '#month-sec', '#plan-sec', '#rec-sec', '#data-sec', ...(analyticsOffered(cfg) ? ['#stats-sec'] : []));
-  $('#stats').checked = analyticsChoice.get();
-  startAnalytics(cfg, { surface: 'parent', parentalConsent: true, accountId: a.account_id || '' });
+  only('#writers-sec', '#month-sec', '#plan-sec', '#rec-sec', '#data-sec');
+
   renderMonth(A.usage || {});
   renderPlan(a);
   $('#rec').checked = !!a.recordings_enabled;
@@ -72,7 +71,7 @@ async function confirmPayment() {
     try { A = await call('GET', '/api/account'); } catch { continue; }
     if (A.account && A.account.child_access) {
       history.replaceState(null, '', '/account/?welcome=1');
-      startAnalytics(cfg, { surface: 'parent', parentalConsent: true, accountId: A.account.account_id || '' }).then(() => capture('subscription_started', { surface: 'parent', operation: 'subscribe', ok: true }));
+
       params.delete('checkout'); params.set('welcome', '1');
       render();
       return;
@@ -191,12 +190,6 @@ $('#rec').onchange = async (e) => {
     A.account.recordings_enabled = on;
   } catch (err) { e.target.checked = !on; if (err.message !== 'cancelled') alert(err.message); }
   $('#rec-say').textContent = A.account.recordings_enabled ? 'On. Recordings are kept with their books and deleted with them.' : 'Off.';
-};
-
-/* ---- anonymous usage (opt-in, this device) ---- */
-$('#stats').onchange = async (e) => {
-  if (e.target.checked) { analyticsChoice.set(true); await startAnalytics(cfg, { surface: 'parent', parentalConsent: true, accountId: (A.account || {}).account_id || '' }); }
-  else stopAnalytics();
 };
 
 /* ---- export and delete ---- */

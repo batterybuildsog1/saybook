@@ -3,6 +3,8 @@
 // pages with pictures) while they keep writing, and each page can be heard as it forms.
 // Rule (Alan, 2026-11-02): the child drives the writing; the app never rewrites their words.
 // Models plan layout and pictures; the writer owns every word.
+import { captureServer } from "./analytics.js";
+import { contact } from "./contact.js";
 import BOOK_SKILL from "./skills/book.md";
 
 import { who, unlock, tenantEnv, finish } from "./tenant.js";
@@ -17,7 +19,7 @@ export default {
   async scheduled(_controller, env, ctx) {
     if (env.MODE === "hosted") ctx.waitUntil(import("./hosted/index.js").then(module => module.scheduled(env)));
   },
-  async queue(batch, rawEnv) {
+  async queue(batch, rawEnv, ctx) {
     for (const msg of batch.messages) {
       const { kind, story_id, sid, account_id } = msg.body || {};
       if (!account_id || (rawEnv.MODE !== "hosted" && account_id !== "self")) { msg.ack(); continue; }
@@ -25,7 +27,7 @@ export default {
         const account = await rawEnv.DB.prepare("SELECT account_id FROM hosted_accounts WHERE account_id=? AND status='active' AND consent_at>0 AND parent_verified_at>0").bind(account_id).first();
         if (!account) { msg.ack(); continue; }
       }
-      const env = tenantEnv(Object.assign(Object.create(rawEnv), { CTX: null }), account_id);
+      const env = tenantEnv(Object.assign(Object.create(rawEnv), { CTX: ctx }), account_id);
       try {
         if (kind === "story") await paintStory(env, story_id);
         else if (kind === "page") await paintQueued(env, story_id, sid);
@@ -51,12 +53,13 @@ export default {
     try {
       if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && req.headers.get("origin") && req.headers.get("origin") !== url.origin) return json({ error: "Cross-origin write refused" }, 403);
       if (p === "/robots.txt" && env.MODE === "hosted") return new Response("User-agent: *\nAllow: /$\nAllow: /home/\nDisallow: /\n", { headers: { "content-type": "text/plain; charset=utf-8" } });
+      if (p === "/api/contact") return contact(req, env);
       if (p === "/api/config") {
         const tenant = await who(req, env);
         return json({ app_name: APP_NAME, mode: env.MODE || "self", passcode_required: env.MODE !== "hosted" && !!env.PASSCODE,
           passcode_length: /^\d+$/.test(env.PASSCODE || "") ? env.PASSCODE.length : undefined,
           signed_in: !!tenant, signup_open: env.MODE === "hosted" && env.HOSTED_OPEN === "true",
-          analytics_key: env.ANALYTICS_KEY || "", analytics_budget_verified: env.ANALYTICS_BUDGET_VERIFIED === "true", analytics_replay: env.ANALYTICS_REPLAY === "true" });
+          analytics_key: env.ANALYTICS_KEY || "", analytics_budget_verified: env.ANALYTICS_BUDGET_VERIFIED === "true", analytics_replay: env.ANALYTICS_REPLAY === "true", analytics_deployment: env.ANALYTICS_DEPLOYMENT === "production" ? "production" : "test" });
       }
       const publicMatch = p.match(/^\/api\/shared\/([^/]+)$/) || p.match(/^\/s\/([^/]+)\/(.+)$/);
       if (publicMatch && ["GET", "HEAD"].includes(req.method)) return publicShare(req, rawEnv, publicMatch[1], publicMatch[2], { loadStory, speechKey, media });
@@ -91,14 +94,20 @@ export default {
             : env.DB.prepare("INSERT INTO settings (account_id,writers) VALUES (?,?) ON CONFLICT(account_id) DO UPDATE SET writers=excluded.writers").bind(env.account_id, JSON.stringify(writers));
           const changed = await write.run();
           if (!changed.meta.changes) return json({ error: "account_unavailable" }, 403);
+          if (writers.length) captureServer(env, "writer_added", {count:writers.length});
           return json({ writers });
         }
       }
       if (p.startsWith("/media/")) return await media(p.slice(7), req, env);
-      if (p.startsWith("/api/")) return await api(req, env, ctx, url);
+      if (p.startsWith("/api/")) {
+        const response = await api(req, env, ctx, url);
+        if(response.status>=400)captureServer(env,"error",{operation:"request",status:response.status,error_code:response.status>=500?"provider":"validation",ok:false},{object:crypto.randomUUID()});
+        return response;
+      }
       return env.ASSETS.fetch(req);
     } catch (e) {
-      console.error(p, e?.message || "request failed");
+      captureServer(env,"error",{operation:"request",error_code:"unknown",status:e?.status||500},{object:crypto.randomUUID()});
+      console.error("request failed", e?.status || 500);
       return json({ error: e?.status ? e.message : "request failed", reason: e?.reason }, e?.status || 500);
     } finally { if (!env.streaming) await finish(env); }
   },
@@ -174,6 +183,8 @@ async function createStory(req, env) {
     : env.DB.prepare("INSERT INTO stories (account_id,id,author,title,text,voice_id,created,updated) VALUES (?,?,?,?,?,?,?,?)").bind(...values);
   const inserted = await insert.run();
   if (!inserted.meta.changes) return json({ error: "account_unavailable" }, 403);
+  captureServer(env,"story_started",{}, {object:id});
+  captureServer(env,"second_story");
   return getStory(env, id, 201);
 }
 
@@ -598,6 +609,7 @@ async function layoutBook(req, env, id) {
   for (const c of gone) stmts.push(env.DB.prepare("DELETE FROM scenes WHERE account_id=? AND story_id=? AND sid=?").bind(env.account_id, id, c.sid));
   const drop = gone.filter((c) => !carried.has(c.sid)).flatMap((c) => [c.image_key, ...JSON.parse(c.versions || "[]").map((v) => v.key)]).filter(Boolean);
   if (stmts.length) await env.DB.batch(stmts);
+  if (next.length) captureServer(env,"first_page_formed");
   if (drop.length) await env.MEDIA.delete(drop);
   await enqueuePaint(env, id);
   return json({ applied: true, ms, fallback: splitFallback || planFallback, ...(await storyJson(env, id)) });
@@ -1158,6 +1170,7 @@ async function media(key, req, env) {
     }
   } else o = await env.MEDIA.get(key, { range: req.headers });
   if (!o) return new Response("not found", { status: 404 });
+  if (req.method === "GET" && /^audio\/.+\.mp3$/.test(key)) captureServer(env,"first_read_aloud");
   const h = new Headers();
   o.writeHttpMetadata(h);
   if (cache) h.set("x-thumbnail-cache", cache);
@@ -1171,6 +1184,8 @@ async function media(key, req, env) {
   return new Response(o.body, { headers: h });
 }
 async function log(env, kind, story, ok, ms, units, unit, usd, meta) {
+  if(ok && kind === "image") captureServer(env,"first_picture_painted");
+  if(!ok) captureServer(env,"error",{operation:["image","stt","audio","page","story","save"].includes(kind)?kind:"request",error_code:"provider",duration_ms:ms,ok:false},{object:crypto.randomUUID()});
   try {
     const values = [env.account_id, Date.now(), kind, story || null, ok ? 1 : 0, ms, units ?? null, unit, usd ?? 0, JSON.stringify(meta || {})];
     const statement = env.MODE === "hosted"

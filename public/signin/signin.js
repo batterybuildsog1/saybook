@@ -1,6 +1,7 @@
 // Sign in, a new family account (parent email + password + the parent notice), or a new password with the recovery
 // code. Hosted API: POST /auth/login, /auth/signup, /auth/recover (src/hosted/auth.js). After sign-up the recovery
 // code shows once, then the parent goes to /account/ to start the plan (the payment is also the consent check).
+import { analyticsChoice } from '/analytics.js';
 import { brand, config, SELLER, REPO_URL, priceText } from '/kit.js';
 
 const $ = (s) => document.querySelector(s);
@@ -31,6 +32,7 @@ $('#back-in').onclick = () => show('#f-in');
 $('#closed-back').onclick = () => show('#f-in');
 
 const cfg = await config();
+$('#f-new').analytics_consent.checked = analyticsChoice.get();
 if (cfg.mode !== 'hosted') location.replace('/'); // a self-hosted copy has no accounts
 if (cfg.signed_in && !params.has('new')) location.replace(next === '/' ? '/account/' : next);
 // GET /auth/enrollment {waitlist_only, paid_families, max_accounts, painting_notice}: when every family place is taken,
@@ -69,14 +71,14 @@ $('#f-new').onsubmit = (e) => {
   e.preventDefault();
   const f = e.target;
   if (!/^\S+@\S+\.\S+$/.test(f.email.value.trim())) { fail(f, 'Enter your email address.'); f.email.focus(); return; }
-  if (f.password.value.length < 14) { fail(f, 'Your password needs at least 14 characters.'); f.password.focus(); return; }
+  if (f.password.value.length < 8) { fail(f, 'Your password needs at least 8 characters.'); f.password.focus(); return; }
   if (!f.parent.checked || !f.consent.checked) { fail(f, 'Tick both boxes to make the account.'); return; }
   busy(f, async () => {
-    const { status, data } = await post('/auth/signup', { email: f.email.value.trim(), password: f.password.value, consent: true, parent: true, notice_version: NOTICE_VERSION, recordings_enabled: false });
+    const { status, data } = await post('/auth/signup', { email: f.email.value.trim(), password: f.password.value, consent: true, parent: true, notice_version: NOTICE_VERSION, recordings_enabled: false, analytics_consent: f.analytics_consent.checked });
     if (status === 202 || data.waitlisted) { waited(data.message); return; } // full: on the waitlist, no account yet
-    if (status === 201 || status === 200) { savedCode(data.recovery_code, f.email.value.trim()); return; }
+    if (status === 201 || status === 200) { analyticsChoice.set(f.analytics_consent.checked); savedCode(data.recovery_code, f.email.value.trim()); return; }
     if (data.error === 'signup_closed') { show('#closed'); return; }
-    if (data.error === 'weak_password') { fail(f, 'Choose a longer password: at least 14 characters.'); return; }
+    if (data.error === 'weak_password') { fail(f, 'Choose a longer password: at least 8 characters.'); return; }
     fail(f, status === 429 ? 'Too many tries. Wait a few minutes, then try again.' : data.error || 'That didn’t work. Try again.');
   });
 };
@@ -95,7 +97,7 @@ $('#f-wait').onsubmit = (e) => {
 $('#f-recover').onsubmit = (e) => {
   e.preventDefault();
   const f = e.target;
-  if (f.password.value.length < 14) { fail(f, 'Your new password needs at least 14 characters.'); return; }
+  if (f.password.value.length < 8) { fail(f, 'Your new password needs at least 8 characters.'); return; }
   busy(f, async () => {
     const { status, data } = await post('/auth/recover', { email: f.email.value.trim(), recovery_code: f.recovery_code.value.trim(), password: f.password.value });
     if (status === 200) { savedCode(data.recovery_code, f.email.value.trim(), true); return; }

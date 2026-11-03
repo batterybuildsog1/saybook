@@ -8,7 +8,7 @@
 <link rel="stylesheet" href="/grown.css">
 </head>
 <body>
-<header class="bar"><a class="mark" href="/" data-app-name></a><nav><button type="button" id="open-app"><span>Open <span data-app-name></span></span></button><button type="button" id="signout">Sign out</button></nav></header>
+<header class="bar"><a class="mark" href="/" data-app-name>Saybook</a><nav><button type="button" id="open-app"><span>Open <span data-app-name>Saybook</span></span></button><button type="button" id="signout">Sign out</button></nav></header>
 <main class="wrap" id="main" aria-live="polite">
   <section class="sheet" id="loading"><p class="soft">Opening your account…</p></section>
 
@@ -21,11 +21,11 @@
   <!-- Before the first payment: the plan, and what paying also does -->
   <section class="sheet" id="start" hidden aria-labelledby="start-h">
     <h1 id="start-h">Start your plan</h1>
-    <p class="lede"><b data-price></b> a month, for the whole family.</p>
+    <p class="lede"><b data-price>$19.50</b> a month, for the whole family.</p>
     <ul class="lines" id="includes"></ul>
     <p id="paint-note">Pictures can take a few minutes to paint, longer when lots of families are writing. Kids keep writing while they paint, and they appear on their own.</p>
     <p class="note">Paying also confirms you’re the parent or guardian. There’s no separate charge for that. Until it’s done, kids can’t write, record or save anything.</p>
-    <div class="row"><button class="btn" type="button" id="checkout">Continue to payment</button><span class="soft small">Cancel any time. Sold by <span data-seller></span>.</span></div>
+    <div class="row"><button class="btn" type="button" id="checkout">Continue to payment</button><span class="soft small">Cancel any time. Sold by <span data-seller>HVAC Calc LLC</span>.</span></div>
     <p class="err" role="alert" hidden id="start-err" style="margin-top:14px"></p>
   </section>
 
@@ -43,7 +43,7 @@
       <button class="btn" type="submit">Add writer</button>
     </form>
     <p class="err" role="alert" hidden id="writers-err" style="margin-top:14px"></p>
-    <div class="row" style="margin-top:20px" id="to-studio-row" hidden><button class="btn" type="button" id="to-studio"><span>Open <span data-app-name></span></span></button></div>
+    <div class="row" style="margin-top:20px" id="to-studio-row" hidden><button class="btn" type="button" id="to-studio"><span>Open <span data-app-name>Saybook</span></span></button></div>
   </section>
 
   <section class="sheet" id="month-sec" hidden aria-labelledby="month-h">
@@ -58,7 +58,7 @@
     <h2 id="plan-h">Plan and billing</h2>
     <dl class="kv" id="plan-kv"></dl>
     <div class="row"><button class="btn quiet" type="button" id="portal">Billing and invoices</button></div>
-    <p class="soft small" style="margin-top:14px">Sold by <span data-seller></span>. Payments are handled by Stripe.</p>
+    <p class="soft small" style="margin-top:14px">Sold by <span data-seller>HVAC Calc LLC</span>. Payments are handled by Stripe.</p>
   </section>
 
   <section class="sheet" id="rec-sec" hidden aria-labelledby="rec-h">
@@ -68,11 +68,7 @@
     <p class="soft small" id="rec-say"></p>
   </section>
 
-  <section class="sheet" id="stats-sec" hidden aria-labelledby="stats-h">
-    <h2 id="stats-h">Help improve <span data-app-name></span></h2>
-    <p>Send anonymous usage, like which buttons get used and what breaks. Words, names and pictures are hidden before anything leaves this device. Off unless you turn it on, on this device only.</p>
-    <label class="check"><input type="checkbox" id="stats"><span>Share anonymous usage from this device</span></label>
-  </section>
+
 
   <section class="sheet" id="data-sec" hidden aria-labelledby="data-h">
     <h2 id="data-h">Your family’s data</h2>
@@ -88,7 +84,10 @@
 
   <section class="sheet" id="gone" hidden><h1>Account deleted</h1><p>Everything is gone and the plan is cancelled.</p><a class="btn" href="/home/">Done</a></section>
 </main>
-<footer class="foot"><span><span data-app-name></span> is sold by <span data-seller></span>.</span><a href="/legal/privacy">Privacy</a><a href="/legal/terms">Terms</a><a href="/legal/parents">Notice to parents</a></footer>
+<footer class="foot"><span><span data-app-name>Saybook</span> is sold by <span data-seller>HVAC Calc LLC</span>.</span><a href="/legal/privacy">Privacy</a><a href="/legal/terms">Terms</a><a href="/legal/parents">Notice to parents</a><p>Questions? <a href="mailto:support@saybook.app">support@saybook.app</a> · <a href="/contact/">Contact us</a></p>
+<div data-analytics-choice hidden></div>
+</footer>
 <script type="module" src="/account/account.js"></script>
+<script type="module" src="/parent-analytics.js"></script>
 </body>
 </html>

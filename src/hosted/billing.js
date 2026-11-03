@@ -1,3 +1,4 @@
+import { captureServer } from "../analytics.js";
 import { reserveEnrollment, enrollmentUpdate, PAINTING_NOTICE } from './enrollment.js';
 import { now, encoder, hex, constantEqual, fail, json, enabled, testRequest, NOTICE_VERSION, requireCountry } from './util.js';
 const STRIPE_BASE='https://api.stripe.com/v1';
@@ -50,6 +51,7 @@ export async function billingRoute(req,env,a,path) {
    success_url:`${origin}/account/?checkout=done`,cancel_url:`${origin}/account/`,
    'allowed_payment_method_types[0]':'card',
   },`storybook-checkout-${a.account_id}-${Math.floor(now()/1800000)}`);
+  captureServer(env,'checkout_started',{}, {accountId:a.account_id,object:checkout.id});
   return json({url:checkout.url,mode:stripeMode(env)?'live':'test'});
  }
  if(path==='/api/billing/portal') {
@@ -65,6 +67,7 @@ export async function billingRoute(req,env,a,path) {
   }
   await stripe(env,`/subscriptions/${encodeURIComponent(a.stripe_subscription_id)}`,'POST',{cancel_at_period_end:'true'},`storybook-cancel-${a.account_id}-${a.stripe_subscription_id}`);
   await env.DB.prepare('UPDATE hosted_accounts SET cancel_at_period_end=1 WHERE account_id=?').bind(a.account_id).run();
+  captureServer(env,'subscription_canceled',{}, {accountId:a.account_id,object:a.stripe_subscription_id});
   return json({ok:true,cancel_at_period_end:true});
  }
  fail(404,'not found');
@@ -145,6 +148,11 @@ export async function webhook(req,env) {
  updates.push(...enrollmentUpdate(env,accountId));
  updates.push(env.DB.prepare('INSERT OR IGNORE INTO hosted_stripe_events(account_id,event_id,at,type) VALUES(?,?,?,?)').bind(accountId,event.id,now(),event.type));
  await env.DB.batch(updates);
+ if(paidConsent) {
+  captureServer(env,'subscribed',{}, {accountId});
+  captureServer(env,'consent_given',{}, {accountId});
+ }
+ if(status==='canceled'||subscription.cancel_at_period_end)captureServer(env,'subscription_canceled',{}, {accountId,object:subscription.id});
  return json({received:true,fixture});
 }
 export async function cancelForDeletion(req,env,a) {

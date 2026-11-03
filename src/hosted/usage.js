@@ -1,3 +1,4 @@
+import { captureServer } from "../analytics.js";
 import { now, id, number, micros, json, fail, enabled } from './util.js';
 const holds = new WeakMap();
 const DEFAULT_RESERVES = { image:2, cast:2, text:0.50, chat:0.50, book:0.50, punctuation:0.50, tts:0.50, stt:0.02, narration:0.02 };
@@ -86,6 +87,7 @@ export async function allow(env,accountId,kind) {
   if(t.daily+t.daily_reserved+reserve>c.daily||t.daily_images+t.daily_reserved_images+imageReserve>c.dailyImages||t.daily_tokens+t.daily_reserved_tokens+tokenReserve>c.dailyTokens||t.daily_characters+t.daily_reserved_characters+charReserve>c.dailyCharacters)reason='breaker';
   else if(t.recent>=c.rate||t.inflight>=c.concurrent)reason='rate_limit';
  }
+ if(['allowance','rate_limit','breaker'].includes(reason))captureServer(env,'allowance_hit',{error_code:reason==='rate_limit'?'rate_limit':'quota'},{accountId,object:`${period()}:${reason}`});
  return {ok:false,reason,message:LIMIT_MESSAGE};
 }
 function unitsOf(detail) {
