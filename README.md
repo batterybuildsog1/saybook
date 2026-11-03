@@ -11,11 +11,19 @@ Two modes share the same core: **self** is one family with your own provider key
 You need Node 22+, a Cloudflare account with Workers, D1, R2, Queues and Workers AI enabled, and your own OpenAI-compatible API key. Account activation or enabling billing can take longer than three minutes.
 
 ```sh
+git clone https://github.com/batterybuildsog1/saybook.git
+cd saybook
 npm install
 npm run setup
 ```
 
-Setup signs in to Cloudflare, creates your own database/bucket/queue, applies the core schema, prompts for provider keys and an optional family passcode **without echoing them**, stores secrets through Wrangler, and deploys. It writes the resource IDs into ignored `wrangler.local.toml`. Open the workers.dev URL printed by Wrangler, then add writer names and colors in Settings. A blank passcode means anyone who knows the deployment URL can access the family workspace; choose a passcode for private use.
+Setup prompts for provider keys and an optional family passcode **without echoing them**, signs in to Cloudflare if needed, creates your own database/bucket/queue, applies the core schema, stores secrets through Wrangler on a non-serving draft, and then deploys the app with its passcode already in place. It writes the resource IDs into ignored `wrangler.local.toml`. Open the workers.dev URL printed by Wrangler and follow “Who’s writing?” to add writer names and colors. Later, use **Grown-ups → Writers** to manage them. A blank passcode means anyone who knows the deployment URL can access the family workspace; choose a passcode for private use.
+
+Run setup in an interactive terminal. Choose a unique lowercase Worker name; setup uses that name for D1, `<name>-media` for R2 and `<name>-paint` for the queue. It reuses an existing Wrangler login or opens Cloudflare sign-in if needed. Confirm the D1 schema prompts for these newly created resources. Setup currently creates new resources each time; after a partial failure, remove only the resources created by that attempt before restarting.
+
+The provider prompts ask separately for text and vision models (Enter uses the text model for vision), then the image endpoint and model. For a non-OpenAI text provider, supply a compatible image endpoint too. An ElevenLabs key enables timed read-aloud without needing an OpenAI speech endpoint. If using OpenAI speech with a non-OpenAI text endpoint, set `TTS_BASE_URL` in `[vars]` in `wrangler.local.toml` to the speech provider's base and supply its key at the OpenAI TTS key prompt.
+
+To make your first book, choose **New story**. Tap the keyboard icon (**Type instead**) to reveal the story text box, or use the microphone. Completed paragraphs become pages while you write; **Read** includes the final paragraph too. Pictures appear after the character sketches finish and may take several minutes. **Read to me** highlights words as it plays and may prepare later pages in advance. Use **Share**, confirm the disclosure, and **Make a link** to give someone read-only access without the family passcode.
 
 For later deployments:
 
@@ -64,5 +72,20 @@ E2E_PASSCODE='<your isolated test passcode>' npm run e2e -- https://your-test-wo
 ```
 
 The E2E creates author `Demo` only, exercises real providers, and writes a repeatable report, images and audio in `e2e/out/`. It spends provider usage. Never target a family production app. `--media-only` exercises storage/thumbnails without paid model calls.
+
+## Removing a self-host test
+
+Delete test stories in the app first so their pictures, uploads and cached audio are removed from R2. Stop generating before cleanup. Remove the queue consumer before deleting the Worker, then delete the queue, empty bucket and database, using the exact name you chose in setup:
+
+```sh
+SAYBOOK_WORKER=your-test-worker
+npx wrangler queues consumer remove "$SAYBOOK_WORKER-paint" "$SAYBOOK_WORKER"
+npx wrangler delete "$SAYBOOK_WORKER" --config wrangler.local.toml
+npx wrangler queues delete "$SAYBOOK_WORKER-paint"
+npx wrangler r2 bucket delete "$SAYBOOK_WORKER-media"
+npx wrangler d1 delete "$SAYBOOK_WORKER"
+```
+
+Check the names before confirming. These commands permanently delete this deployment and its data. If R2 reports a nonempty bucket, empty only that test bucket in the Cloudflare dashboard before retrying its deletion. Remove `wrangler.local.toml` after cleanup; keep it for as long as the deployment exists.
 
 Released under [MIT](LICENSE). Security boundaries and the scrub audit are in [SECURITY.md](SECURITY.md).
