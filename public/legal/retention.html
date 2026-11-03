@@ -1,0 +1,23 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>How long we keep information — Saybook</title><main>
+<p>Updated November 2, 2026.</p>
+<h1>How long we keep information</h1>
+<p>HVAC Calc LLC keeps information to provide the family library, manage parent consent and subscriptions, and protect the service. Scheduled cleanup runs <strong>daily at 09:00 UTC</strong>. Normal cleanup can take until the next daily run after a deadline; failed billing/storage cleanup or work still finishing can take longer and needs a retry.</p>
+<ul>
+<li><strong>Unverified parent accounts:</strong> removed after 7 days from creation if paid-parent verification is never completed.</li>
+<li><strong>Family library and account:</strong> nicknames, books, uploaded and generated pictures, image versions/thumbnails, saved original readings, generated narration, settings, shares, consent records and account payment-event references stay for the account’s use until deletion or 365 days without authenticated account activity. Activity is checked at most once a day; it is not only the last password sign-in. Books in an active account have no separate age deadline.</li>
+<li><strong>Operational events in our database:</strong> 30 days. Account usage ledgers: 396 days, or earlier on account deletion. Anonymous global daily budget counters: 396 days; they survive deletion of one family’s account.</li>
+<li><strong>Sign-in sessions:</strong> expire after 30 days; logout or recovery can revoke them sooner. Sensitive parent authorization lasts 15 minutes. Hashed security attempt counters expire after an hour and are removed by later sign-in requests or daily cleanup.</li>
+<li><strong>Pending work and places:</strong> usage holds expire after 30 minutes; expired hold rows are removed after they are at least a day old. A pending enrollment place lasts up to two hours; unpaid Checkout expires after 30 minutes. A paid place tracks the paid subscription period. Expired place rows are removed by daily cleanup.</li>
+<li><strong>Waitlist:</strong> adult email for 30 days from the latest submission. Submitting again extends that period.</li>
+<li><strong>Dictation audio:</strong> used for request processing and not saved in the app’s media bucket. Saved original readings are optional and follow library retention above. Browser and transcription-provider copies have separate data practices.</li>
+</ul>
+<h2>Deletion and copies</h2>
+<p>A parent can delete a book or the account. Account deletion stops new work, cancels the subscription, removes account database rows and all account files, including thumbnails and narration, and disables shares. If work is still finishing, the account stays locked and deletion asks for a retry. Painting jobs carry identifiers; they check that the account and story are still allowed before writing. The live painting queue has a four-day message-retention setting; completed messages can leave sooner. Account deletion does not claim an immediate physical purge of queued messages.</p>
+<p>Our media responses allow private browser caching for up to one year. Deletion or revoking a share stops future server retrieval, but cannot recall copies already cached, downloaded or copied by recipients. Export files you download are under your control.</p>
+<h2>Hosting, provider, billing and support records</h2>
+<p>Our daily cleanup does not remove Cloudflare recovery history or infrastructure logs, gateway/proxy logs, provider copies, mail archives, or Stripe financial records. Exact account-specific expiry for recovery/log copies and upstream AI deletion has not been verified. We do not promise immediate erasure from every backup or provider, zero retention or no training.</p>
+<p>Stripe can keep invoices and payment records for financial and legal obligations. Deleting a Saybook account cancels its subscription but does not delete its Stripe customer or financial records. Support and privacy correspondence stays in the operator’s mail systems; no automatic mail deletion period is implemented or verified. These limits remain part of our operator retention review, rather than an invented deadline.</p>
+<h2>Contact us</h2>
+<address>HVAC Calc LLC<br>2066 Grand Teton Road<br>Hurricane, UT 84737<br>Phone: <a href="tel:+14352120130">(435) 212-0130</a><br><a href="mailto:support@saybook.app">support@saybook.app</a></address>
+<p><a href="/legal/privacy">Privacy</a> · <a href="/legal/parents">Parent notice</a> · <a href="/legal/terms">Terms</a> · <a href="/legal/retention">Retention</a> · <a href="/legal/security">Security</a> · <a href="/legal/refunds">Cancellation and refunds</a></p>
+</main></html>

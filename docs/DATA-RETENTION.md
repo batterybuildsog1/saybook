@@ -1,0 +1,37 @@
+# Saybook data-retention schedule
+
+Effective November 2, 2026. Owner: Alan Knudson, HVAC Calc LLC. Contact: support@saybook.app. Scope: hosted saybook.app. [Public schedule](/legal/retention).
+
+The implemented scheduled job is `src/hosted/retention.js`, called by `src/worker.js`. Production cron is **09:00 UTC daily**. Ages below use milliseconds and fixed 24-hour days. Expired sessions/holds/slots stop working at expiry; physical row deletion normally follows at the next daily run. Threshold comparisons use `<`, so a row exactly on the boundary can remain to the next run. Cleanup is not a guaranteed maximum: storage/billing failures or in-flight work can delay deletion and need operator review/retry.
+
+| Data / purpose | Enforced retention and deletion |
+| --- | --- |
+| Unverified parent account, credentials and consent attempt — finish signup/VPC | Delete when no paid-parent verification exists and account creation is more than **7 days** old. No child data permitted before verification. |
+| Verified account, writer nicknames/settings, stories/scenes, originals/references, image versions, thumbnails, saved own readings, generated audio/alignment, share records, consent journal and account Stripe-event deduplication references — family library, consent and safe billing state | Parent can delete the account at any time. Otherwise delete when `max(last_active, created)` is more than **365 days** old. `last_active` is authenticated session use, updated at most once per day; this is not strictly the last password sign-in. Active accounts have no separate per-book age limit. Consent and Stripe-event reference rows have no separate short TTL and leave with the account; do not call these 30-day operational events. |
+| Individual deleted story and its media — parent control | Story deletion removes its scoped rows, sharing and matching story media/derived files. Account deletion sweeps the whole `accounts/<id>/` bucket prefix, including loose uploads. Account cleanup does not claim to erase a recipient's downloaded copy. |
+| D1 `events` — feature performance/error diagnostics | Delete rows more than **30 days** old, or earlier at account deletion. Metadata may include bounded upstream errors; not raw dictation files. |
+| `usage_ledger`, `hosted_usage` — allowances, accounting and parent usage display | Delete rows more than **396 days** old, or earlier at account deletion. This is a fixed day count, not exactly 13 calendar months. |
+| `hosted_global_usage` — anonymous daily budget counters | Delete buckets more than **396 days** old. No family/child identifier; survives individual account deletion to preserve the shared cap. |
+| Sessions — authenticated access | Expire **30 days** after creation, revoke at logout/recovery or account deletion; daily job removes expired rows. Recent-parent authorization expires after **15 minutes**. |
+| Auth attempt counters — rate limiting | Store peppered hashes, not raw IP/email, with **1-hour** expiry; cleared by subsequent auth requests or daily job. |
+| Usage reservations — concurrency/spend admission | Active holds expire after **30 minutes**; completion releases them earlier. Daily cleanup deletes expired rows whose creation is more than **1 day** old. Account deletion removes them after active work has drained. |
+| Enrollment reservation — avoid overselling | Pending slot lasts up to **2 hours**; the unpaid Checkout itself expires after **30 minutes**. Paid slot tracks subscription end. Expired slots stop counting immediately and daily cleanup removes them; account deletion removes its slot. |
+| Waitlist adult email — request a family place | **30 days** from the latest submission; resubmission extends expiry. Daily cleanup deletes expired entries. There is no automatic waitlist email sender. |
+| Provider circuit breaker — stop retry storms | Blocks until its `until_at`, normally UTC midnight for a provider-limit latch; daily job removes expired global breakers. |
+| Dictation audio — respond with transcription | Request processing only; app does not write it to R2 or queue it. No promise about browser speech service or Cloudflare upstream copies. Optional saved own readings are different and follow library retention above. |
+
+## Deletion, queues and caches
+
+`src/hosted/accounts.js` freezes an account, cancels its subscription immediately, waits for unexpired holds, deletes every account-prefixed R2 object, and transactionally deletes the scoped D1 tables including auth, consent, usage, shares and Stripe-event references. A 409 means work remains; the account stays locked and the parent or daily job retries. Infrastructure/Stripe failures must not be reported as success.
+
+Painting messages contain account/story/page identifiers rather than the story or audio itself. Queue consumers reject missing, frozen or unconsented accounts; media writes check account/story both before and after storing so delayed work cannot repopulate deleted content. Production allows three queue retries, not an indefinite app retry loop. The live queue setting is **345,600 seconds (4 days)** message retention, read back from Cloudflare on November 2, 2026. Acknowledged messages complete earlier; rejecting deleted accounts is a processing safeguard, not an immediate physical queue-purge claim.
+
+Resized images and cached narration/alignment are R2 objects under the account prefix and included in account deletion. Media responses use **`Cache-Control: private, max-age=31536000, immutable`** (one year). Auth/share gates control future server retrieval, but the app cannot recall media already cached by a browser or copied by a recipient. A revoked link does not remotely erase those copies. API/export responses use no-store; there is no application backup export job configured by this code.
+
+## Provider, recovery and support records: known limits
+
+The app's cron does **not** delete Cloudflare D1 recovery history, infrastructure logs, operator gateway/proxy logs, provider records, mail archives, or Stripe financial records. Account-specific expiry and deletion guarantees for those systems have not been established by the application code. Do not invent a backup deadline or promise that parent deletion erases every vendor copy. Cloudflare observability persists invocation logs with 100% head sampling; query-string redaction is false in the live readback. The log-retention period is not supplied by that readback. There is no verified ZDR agreement for the subscription-backed Anthropic/OpenAI gateway route or ElevenLabs; browser speech recognition has its own provider path.
+
+Stripe retains invoices and transaction records under its financial/legal obligations and settings; deleting the app account cancels the subscription but does not delete the Stripe customer or financial history. Support/privacy correspondence is held in the operator's mail systems; **no automatic support-mail deletion period is implemented or verified**. Alan must resolve/document vendor assurances, recovery/log expiry and an appropriate correspondence schedule before treating those retention duties as passed. The operator must honor applicable legal retention duties without keeping child story files as billing evidence.
+
+Review this schedule with the security program at least annually and whenever code, provider settings or data purposes change. Check successful cron execution and retry failed deletion; merely configuring the cron is not ongoing monitoring evidence.
