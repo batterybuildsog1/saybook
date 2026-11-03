@@ -7,8 +7,8 @@ import { captureServer } from "./analytics.js";
 import { contact } from "./contact.js";
 import BOOK_SKILL from "./skills/book.md";
 
-import { who, unlock, tenantEnv, finish } from "./tenant.js";
-import { providerFetch, chatCompletion, permit, account, unknownCost, settleText, failText } from "./providers.js";
+import { who, unlock, tenantEnv, finish, bookGate } from "./tenant.js";
+import { providerFetch, chatCompletion as providerChatCompletion, permit, account, unknownCost, settleText, failText } from "./providers.js";
 import { shareInfo, shareRoute, publicShare, parentGate } from "./sharing.js";
 import { setupStatus } from "./setup.js";
 import { APP_NAME } from "./config.js";
@@ -21,13 +21,14 @@ export default {
   },
   async queue(batch, rawEnv, ctx) {
     for (const msg of batch.messages) {
-      const { kind, story_id, sid, account_id } = msg.body || {};
+      const { kind, story_id, sid, account_id, enqueued_at } = msg.body || {};
       if (!account_id || (rawEnv.MODE !== "hosted" && account_id !== "self")) { msg.ack(); continue; }
       if (rawEnv.MODE === "hosted") {
         const account = await rawEnv.DB.prepare("SELECT account_id FROM hosted_accounts WHERE account_id=? AND status='active' AND consent_at>0 AND parent_verified_at>0").bind(account_id).first();
         if (!account) { msg.ack(); continue; }
       }
-      const env = tenantEnv(Object.assign(Object.create(rawEnv), { CTX: ctx }), account_id);
+      const env = tenantEnv(Object.assign(Object.create(rawEnv), { CTX: ctx, PAINT_TRACE: { story_id, sid, queue_kind: kind, attempt: msg.attempts } }), account_id);
+      await log(env, "paint_queue", story_id, true, enqueued_at ? Date.now() - enqueued_at : null, 1, "messages", 0, env.PAINT_TRACE);
       try {
         if (kind === "story") await paintStory(env, story_id);
         else if (kind === "page") await paintQueued(env, story_id, sid);
@@ -89,6 +90,18 @@ export default {
           await parentGate(req, env);
           const body = await req.json();
           const writers = normalizeWriters(body.writers);
+          // Removing a writer deletes their books: stories, pages, media and share links (lead's ruling, 2026-11-03).
+          // The data model could keep them (stories.author is only a name), but a kept book has no shelf, so nobody
+          // could find it to stop its public link. A writer with books goes only when the caller names them in
+          // delete_books, so a stale writer list can't delete a family's books by accident. Books go first: if that
+          // fails part-way, the writer stays listed with what's left, and removing them again finishes the job.
+          const kept = new Set(writers.map((w) => w.name));
+          const gone = (await familySettings(env)).writers.map((w) => w.name).filter((n) => !kept.has(n));
+          const doomed = gone.length ? (await env.DB.prepare(`SELECT id, author FROM stories WHERE account_id=? AND author IN (${gone.map(() => "?").join(",")})`).bind(env.account_id, ...gone).all()).results : [];
+          const named = new Set(Array.isArray(body.delete_books) ? body.delete_books : []);
+          const unnamed = gone.find((n) => !named.has(n) && doomed.some((s) => s.author === n));
+          if (unnamed) return json({ error: "writer_has_books", writer: unnamed, books: doomed.filter((s) => s.author === unnamed).length }, 409);
+          for (const s of doomed) await deleteStory(env, s.id);
           const write = env.MODE === "hosted"
             ? env.DB.prepare("INSERT INTO settings (account_id,writers) SELECT ?,? WHERE EXISTS (SELECT 1 FROM hosted_accounts WHERE account_id=? AND status='active' AND consent_at>0 AND parent_verified_at>0) ON CONFLICT(account_id) DO UPDATE SET writers=excluded.writers").bind(env.account_id, JSON.stringify(writers), env.account_id)
             : env.DB.prepare("INSERT INTO settings (account_id,writers) VALUES (?,?) ON CONFLICT(account_id) DO UPDATE SET writers=excluded.writers").bind(env.account_id, JSON.stringify(writers));
@@ -164,11 +177,12 @@ async function listStories(env, author) {
   const q = author
     ? env.DB.prepare("SELECT * FROM stories WHERE account_id=? AND author=? ORDER BY updated DESC").bind(env.account_id, author)
     : env.DB.prepare("SELECT * FROM stories WHERE account_id=? ORDER BY updated DESC").bind(env.account_id);
-  const [{ results }, sc] = await Promise.all([q.all(),
-    env.DB.prepare("SELECT story_id, ord, image_key FROM scenes WHERE account_id=? ORDER BY story_id, ord").bind(env.account_id).all()]);
-  const n = {}, cover = {};
+  const [{ results }, sc, sh] = await Promise.all([q.all(),
+    env.DB.prepare("SELECT story_id, ord, image_key FROM scenes WHERE account_id=? ORDER BY story_id, ord").bind(env.account_id).all(),
+    env.DB.prepare("SELECT story_id FROM shares WHERE account_id=?").bind(env.account_id).all()]);
+  const n = {}, cover = {}, shared = new Set(sh.results.map((r) => r.story_id));
   for (const c of sc.results) { n[c.story_id] = (n[c.story_id] || 0) + 1; if (c.image_key && !cover[c.story_id]) cover[c.story_id] = c.image_key; }
-  return json(results.map((s) => ({ id: s.id, title: s.title, author: s.author, updated: s.updated,
+  return json(results.map((s) => ({ id: s.id, title: s.title, author: s.author, updated: s.updated, shared: shared.has(s.id),
     cover_url: mediaUrl(cover[s.id]), scene_count: n[s.id] || 0, words: wc(s.text),
     first_line: (String(s.text || "").split(/\n/)[0].match(/^.{1,70}?(?:[.!?](?=\s|$)|$)/) || [""])[0].trim() })));
 }
@@ -176,6 +190,8 @@ async function listStories(env, author) {
 async function createStory(req, env) {
   const b = await req.json().catch(() => ({}));
   if (!b.author) return json({ error: "author required" }, 400);
+  const gate = await bookGate(env); // hosted: the sixth book waits for a plan
+  if (!gate.ok) return json(gate, 402);
   const id = rid(), now = Date.now();
   const values = [env.account_id, id, clean(b.author, 40), clean(b.title || "", 120), String(b.text || ""), b.voice_id || null, now, now];
   const insert = env.MODE === "hosted"
@@ -217,10 +233,10 @@ async function getStory(env, id, status = 200) {
 const sceneOut = (c) => ({ sid: c.sid, ord: c.ord, from: c.para_from, to: c.para_to, text: c.text,
   present: JSON.parse(c.present || "[]"), image_prompt: c.image_prompt, image_url: mediaUrl(c.image_key),
   refs: JSON.parse(c.refs || "[]"), feedback: c.feedback, stale: !!c.stale, error: c.error || null,
-  // A paint whose request was cut off (tab closed mid-paint) never finishes: after 150 s it counts as not painted,
-  // so the app draws it again (a writer's 22 pages sat on "generating", 2026-11-02).
+  // A page can need two provider paints plus an art check; 150 s can expire live work.
+  // Recover abandoned work after the queue consumer's 15-minute wall-time limit, matching the family app.
   // Waiting in the paint queue shows as "generating" (queued: true), so the UI just shows the pencil placeholder.
-  status: (c.status === "generating" && Date.now() - c.updated > 150000) || (c.status === "queued" && Date.now() - c.updated > 900000)
+  status: (c.status === "generating" && Date.now() - c.updated > 900000) || (c.status === "queued" && Date.now() - c.updated > 900000)
     ? (c.image_key ? "done" : "pending") : c.status === "queued" ? "generating" : c.status,
   queued: c.status === "queued" && Date.now() - c.updated <= 900000,
   versions: JSON.parse(c.versions || "[]").map((v) => ({ url: mediaUrl(v.key), how: v.how, at: v.at })) });
@@ -527,7 +543,11 @@ async function layoutBook(req, env, id) {
   const prev = L.s.book ? JSON.parse(L.s.book) : {};
   const settledHash = (await sha256(settled)).slice(0, 16);
   if (wc(settled) < 12 || prev.settled_hash === settledHash) return json({ applied: false, unchanged: true, ...(await storyJson(env, id)) });
+  // Hosted: a book counts once its first pages form. Checked before any model work, claimed just before pages are written.
+  let gate = await bookGate(env, id);
+  if (!gate.ok) return json(gate, 402);
   const t0 = Date.now();
+  env.PAINT_TRACE = { story_id: id, stage: "layout" };
 
   // 1. Paragraphs. The kid's own breaks stay; only long ones get split, at sentence starts the model QUOTES.
   //    The server cuts the kid's text at those quotes, so no word can change (the model never re-types the
@@ -575,6 +595,7 @@ async function layoutBook(req, env, id) {
   if (newText.replace(/\s+/g, " ").trim() !== text.replace(/\s+/g, " ").trim()) return json({ error: "layout would change the writer’s words", applied: false }, 422);
   const bookJson = JSON.stringify({ chapters, settled_paragraphs: paras.length, settled_hash: (await sha256(paras.join("\n\n"))).slice(0, 16) });
   const now = Date.now();
+  if (scenes.length && !(gate = await bookGate(env, id, true)).ok) return json(gate, 402); // lost the race for the last free book
   const upd = await env.DB.prepare("UPDATE stories SET text=?, book=?, bible=?, updated=? WHERE account_id=? AND id=? AND text=?")
     .bind(newText, bookJson, JSON.stringify(bible), now, env.account_id, id, text).run();
   await log(env, "book", id, true, ms, paras.length, "paragraphs", 0, { model, split_ms: splitMs, split_fallback: splitFallback,
@@ -751,6 +772,8 @@ async function punctuation(req, env, id) {
 // page copied its composition onto every page; one group sheet put every character on every page; a global
 // "World:" line put the bedroom on the moon (bake-off P5), so it's gone.
 const HOUSE_STYLE = "Classic modern picture-book illustration: transparent watercolour and coloured pencil on textured cold-press paper, visible pencil linework under loose washes, natural proportions (not big-headed or chibi), a restrained palette with a few strong accents, soft natural light, generous calm space; painterly and handmade, like an award-winning picture book for 6–12 year olds, never glossy, never 3D, no cartoon shine.";
+const STORYBOOK_SAFETY = "Expressions follow the child's story and the character's role: a villain may look storybook-menacing, sly, grumpy or fierce; a kind monster may look kind. Do not force smiles or turn a villain into a friendly character. Use expressive picture-book make-believe suitable for ages 6–12: no gore, realistic violence, injury detail or horror imagery.";
+const characterContext = (text, name) => String(text).split(/(?<=[.!?])\s+|\n+/).filter((line) => line.toLowerCase().includes(String(name).toLowerCase())).join(" ").slice(0, 1600);
 const styleLine = (bible) => `Style: ${HOUSE_STYLE}${bible.style ? ` Mood and palette for this book: ${bible.style}` : ""}`;
 const castMap = (s) => { try { return JSON.parse(s.cast_key || "{}") || {}; } catch { return {}; } };
 const castOut = (s) => Object.entries(castMap(s)).map(([name, k]) => ({ name, url: mediaUrl(k) }));
@@ -761,7 +784,7 @@ function inScene(bible, c) {
 }
 
 // OpenAI Images shape: generations without references, multipart edits with them.
-async function drawImage(env, prompt, refs, size = "1536x1024") {
+async function drawImage(env, prompt, refs, size = "1536x1024", character = null) {
   const quality = env.IMAGE_QUALITY || "medium";
   const t0 = Date.now();
   let res;
@@ -775,7 +798,9 @@ async function drawImage(env, prompt, refs, size = "1536x1024") {
     res = await providerFetch(env, "/images/generations", { method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ model: env.IMAGE_MODEL || "gpt-image-2.5-sunburst", prompt, size, quality }) });
   }
+  const headersMs = Date.now() - t0;
   const d = await res.json().catch(() => ({}));
+  if (env.PAINT_TRACE) await log(env, "paint_stage", env.PAINT_TRACE.story_id, res.ok && !!d?.data?.[0]?.b64_json, Date.now() - t0, 1, "calls", 0, { ...env.PAINT_TRACE, stage: character ? "portrait" : "page", character, headers_ms: headersMs, endpoint: refs.length ? "edits" : "generations", status: res.status });
   const b64img = d?.data?.[0]?.b64_json;
   return { ok: res.ok && !!b64img, bytes: b64img ? unb64(b64img) : null, ms: Date.now() - t0, status: res.status,
     quality_asked: quality, quality_got: d.quality, tokens: d.usage?.total_tokens,
@@ -800,69 +825,87 @@ async function visionJson(env, text, images, maxTokens = 3000) {
 //    bible look, then the portrait translates the drawing into the book's style (bake-off P4a: keeps the bow
 //    tie, teeth and ears on every later page; pasting the drawing into a page did not).
 async function castPortraits(req, env, id) { return castCore(env, id, await req.json().catch(() => ({}))); }
-async function castCore(env, id, b) {
+async function castCore(env, id, b, onPortrait = null) {
+  env = Object.assign(Object.create(env), { PAINT_TRACE: { ...env.PAINT_TRACE, story_id: id, stage: "portrait" } });
   const L = await loadStory(env, id);
   if (!L?.s.bible) return json({ error: "the book needs a few sentences first" }, 400);
   const bible = JSON.parse(L.s.bible);
   const have = castMap(L.s);
   // One portrait run per story at a time: three overlapping {missing:true} calls drew 15 portraits for 5 (2026-11-02).
+  let castLock = null;
   if (b.missing) {
+    castLock = Date.now();
     const lock = await env.DB.prepare("UPDATE stories SET cast_lock=? WHERE account_id=? AND id=? AND (cast_lock IS NULL OR cast_lock < ?)")
-      .bind(Date.now(), env.account_id, id, Date.now() - 90000).run();
-    if (!lock.meta.changes) {
-      for (let i = 0; i < 45; i++) { // wait for the run in progress, then answer with its result
-        await new Promise((r) => setTimeout(r, 2000));
-        const row = await env.DB.prepare("SELECT cast_key, cast_lock FROM stories WHERE account_id=? AND id=?").bind(env.account_id, id).first();
-        if (!row.cast_lock) return json({ cast: castOut(row), failed: [], ms: 0, waited: true });
-      }
-      return json({ cast: castOut(L.s), failed: [], ms: 0, busy: true });
+      .bind(castLock, env.account_id, id, Date.now() - 900000).run();
+    if (!lock.meta.changes) return json({ error: "character pictures are already painting", busy: true }, 503);
+  }
+  try {
+    const firstNames = new Set(L.scenes.find((c) => !c.image_key)?.present ? JSON.parse(L.scenes.find((c) => !c.image_key).present).map((n) => String(n).toLowerCase()) : []);
+    const who = (bible.characters || []).filter((x) => (!b.name || x.name.toLowerCase() === String(b.name).toLowerCase()) && (!b.missing || !have[x.name])).sort((a, b) => Number(firstNames.has(b.name.toLowerCase())) - Number(firstNames.has(a.name.toLowerCase()))).slice(0, env.MODE === "hosted" ? 3 : 6);
+    if (!who.length) {
+      return json(b.missing ? { cast: castOut(L.s), failed: [], ms: 0 } : { error: "no such character" }, b.missing ? 200 : 404);
     }
+    const drawing = b.name ? (await getRefs(env, okRefs(b.refs), "kid-drawing"))[0] : null;
+    const t0 = Date.now();
+    let kidlook = "";
+    if (drawing) {
+      const x = who[0];
+      const r = await visionJson(env, `Look at this child's drawing of ${x.name}, a character in their story. List the design choices a child would care about (colours, clothes, accessories, face details, body shape) as one short comma-separated phrase. Then write a replacement one-sentence visual description of ${x.name} for an illustrator that keeps those choices; where the drawing is silent, keep the old description: "${x.look}". Answer ONLY JSON: {"kidlook": "...", "look": "..."}`, [dataUrl(drawing)], 2000);
+      if (r?.look) { kidlook = clean(r.kidlook || "", 300); x.look = clean(r.look, 600); x.from_drawing = true; }
+    }
+    const map = castMap(L.s);
+    const outcomes = await Promise.allSettled(who.map(async (x) => {
+      const d = await drawImage(env, drawing ? [
+      `Character portrait for a children's picture book. ${styleLine(bible)}`,
+      STORYBOOK_SAFETY,
+      `Story context for ${x.name} (the child's words): ${characterContext(L.s.text, x.name)}`,
+      `The reference image is a child's own drawing of ${x.name}. Turn it into a finished book illustration of the same character: keep every design choice the child made (${kidlook || x.look}), and the shape, proportions and personality of their drawing, but paint it in the book's style, not as crayon on paper.`,
+      b.feedback ? `The child also said: "${String(b.feedback).slice(0, 300)}".` : "",
+      "Full body, an expression fitting the story role and the child’s drawing, evenly lit, alone on a plain cream background, no scenery, no paper texture or table.",
+      "No words, names, labels or letters anywhere.",
+    ].filter(Boolean).join("\n") : [
+      `Character portrait for a children's picture book. ${styleLine(bible)}`,
+      STORYBOOK_SAFETY,
+      `Story context for ${x.name} (the child's words): ${characterContext(L.s.text, x.name)}`,
+      `${x.name}: ${x.look}. Full body, an expression fitting the story role, evenly lit, alone on a plain cream background, no scenery.`,
+      b.feedback ? `The child's feedback: "${String(b.feedback).slice(0, 300)}".` : "",
+      "No words, names, labels or letters anywhere.",
+    ].filter(Boolean).join("\n"), drawing ? [drawing] : [], "1024x1024", x.name);
+      return await savePortrait(x, d);
+    }));
+    const rejected = outcomes.find((r) => r.status === "rejected");
+    if (rejected) throw rejected.reason;
+    const drawn = outcomes.map((r) => r.value);
+    async function savePortrait(x, d) {
+      if (!d.ok) return d;
+      const key = `img/${id}/cast-${slug(x.name)}-${Date.now()}.png`;
+      await env.MEDIA.put(key, d.bytes, { httpMetadata: { contentType: "image/png" } });
+      map[x.name] = key; // Every portrait version stays in R2 until story deletion.
+      // Publish each completed portrait immediately; other characters no longer hold it back.
+      await env.DB.prepare("UPDATE stories SET cast_key=json_patch(COALESCE(cast_key,'{}'),?) WHERE account_id=? AND id=?")
+        .bind(JSON.stringify({ [x.name]: key }), env.account_id, id).run();
+      if (onPortrait) await onPortrait();
+      return d;
+    }
+    await env.DB.prepare("UPDATE stories SET bible=? WHERE account_id=? AND id=?").bind(JSON.stringify(bible), env.account_id, id).run();
+    const failed = who.filter((_, k) => !drawn[k].ok).map((x) => x.name);
+    await log(env, "cast", id, !failed.length, Date.now() - t0, who.length, "images", 0,
+      { each_ms: drawn.map((d) => d.ms), failed, from_drawing: !!drawing, err: drawn.find((d) => !d.ok)?.err });
+    if (failed.length) return json({ error: "the character pictures didn't work, try again", detail: drawn[0].err }, 502);
+    // After a drawing, the app asks the kid: "Draw Biscuit like this on the other pages too?" (pages that show them).
+    const pagesWith = drawing ? L.scenes.filter((c) => c.image_key && JSON.parse(c.present || "[]").some((n) => n.toLowerCase() === who[0].name.toLowerCase())).map((c) => c.sid) : [];
+    return json({ cast: castOut({ cast_key: JSON.stringify(map) }), failed, ms: Date.now() - t0, pages_with: pagesWith });
+  } finally {
+    if (castLock) await env.DB.prepare("UPDATE stories SET cast_lock=NULL WHERE account_id=? AND id=? AND cast_lock=?").bind(env.account_id, id, castLock).run();
+    await finish(env);
   }
-  const who = (bible.characters || []).filter((x) => (!b.name || x.name.toLowerCase() === String(b.name).toLowerCase()) && (!b.missing || !have[x.name])).slice(0, 6);
-  if (!who.length) {
-    if (b.missing) await env.DB.prepare("UPDATE stories SET cast_lock=NULL WHERE account_id=? AND id=?").bind(env.account_id, id).run();
-    return json(b.missing ? { cast: castOut(L.s), failed: [], ms: 0 } : { error: "no such character" }, b.missing ? 200 : 404);
-  }
-  const drawing = b.name ? (await getRefs(env, okRefs(b.refs), "kid-drawing"))[0] : null;
-  const t0 = Date.now();
-  let kidlook = "";
-  if (drawing) {
-    const x = who[0];
-    const r = await visionJson(env, `Look at this child's drawing of ${x.name}, a character in their story. List the design choices a child would care about (colours, clothes, accessories, face details, body shape) as one short comma-separated phrase. Then write a replacement one-sentence visual description of ${x.name} for an illustrator that keeps those choices; where the drawing is silent, keep the old description: "${x.look}". Answer ONLY JSON: {"kidlook": "...", "look": "..."}`, [dataUrl(drawing)], 2000);
-    if (r?.look) { kidlook = clean(r.kidlook || "", 300); x.look = clean(r.look, 600); x.from_drawing = true; }
-  }
-  const drawn = await Promise.all(who.map((x) => drawImage(env, drawing ? [
-    `Character portrait for a children's picture book. ${styleLine(bible)}`,
-    `The reference image is a child's own drawing of ${x.name}. Turn it into a finished book illustration of the same character: keep every design choice the child made (${kidlook || x.look}), and the shape, proportions and personality of their drawing, but paint it in the book's style, not as crayon on paper.`,
-    b.feedback ? `The child also said: "${String(b.feedback).slice(0, 300)}".` : "",
-    "Full body, friendly expression, evenly lit, alone on a plain cream background, no scenery, no paper texture or table.",
-    "No words, names, labels or letters anywhere.",
-  ].filter(Boolean).join("\n") : [
-    `Character portrait for a children's picture book. ${styleLine(bible)}`,
-    `${x.name}: ${x.look}. Full body, friendly expression, evenly lit, alone on a plain cream background, no scenery.`,
-    b.feedback ? `The child's feedback: "${String(b.feedback).slice(0, 300)}".` : "",
-    "No words, names, labels or letters anywhere.",
-  ].filter(Boolean).join("\n"), drawing ? [drawing] : [], "1024x1024")));
-  const map = castMap(L.s);
-  for (const [k, x] of who.entries()) {
-    if (!drawn[k].ok) continue;
-    const key = `img/${id}/cast-${slug(x.name)}-${Date.now()}.png`;
-    await env.MEDIA.put(key, drawn[k].bytes, { httpMetadata: { contentType: "image/png" } });
-    map[x.name] = key; // old portraits stay in R2 until the story is deleted
-  }
-  await env.DB.prepare("UPDATE stories SET cast_key=?, bible=?, cast_lock=NULL WHERE account_id=? AND id=?").bind(JSON.stringify(map), JSON.stringify(bible), env.account_id, id).run();
-  const failed = who.filter((_, k) => !drawn[k].ok).map((x) => x.name);
-  await log(env, "cast", id, !failed.length, Date.now() - t0, who.length, "images", 0,
-    { each_ms: drawn.map((d) => d.ms), failed, from_drawing: !!drawing, err: drawn.find((d) => !d.ok)?.err });
-  if (failed.length === who.length) return json({ error: "the character pictures didn't work, try again", detail: drawn[0].err }, 502);
-  // After a drawing, the app asks the kid: "Draw Biscuit like this on the other pages too?" (pages that show them).
-  const pagesWith = drawing ? L.scenes.filter((c) => c.image_key && JSON.parse(c.present || "[]").some((n) => n.toLowerCase() === who[0].name.toLowerCase())).map((c) => c.sid) : [];
-  return json({ cast: castOut({ cast_key: JSON.stringify(map) }), failed, ms: Date.now() - t0, pages_with: pagesWith });
 }
 
 // The art director (bake-off P3: caught 3 of 14 pages, no false alarms, ~11 s). Runs only on pages the app
 // draws by itself, before the kid sees them. Kill criterion: < 1 major flag in 20 pages over ~10 real stories.
 async function artDirector(env, page, portraits, present, absent, c) {
+  env = Object.assign(Object.create(env), { PAINT_TRACE: { ...env.PAINT_TRACE, stage: "art_check" } });
+  try {
   const t0 = Date.now();
   const r = await visionJson(env, `You are the art director for a children's picture book (readers 6–12). Check ONE finished page illustration against what it must show. The FIRST image is the page. The following images are the official character portraits, in this order: ${portraits.map((p) => p.who).join(", ") || "(none)"}.
 
@@ -877,13 +920,14 @@ Report only real problems a parent or child would notice. Check:
 3. off_model: a character clearly doesn't match their portrait (species, main colours, signature clothing/detail)
 4. text: any letters, words, numbers or speech bubbles in the image (tiny unreadable squiggles don't count)
 5. story: the picture doesn't show the key moment of the scene text
-6. safety: anything scary, violent or not kid-friendly
+6. safety: gore, realistic violence, injury detail or horror imagery. Storybook menace, bared teeth, sly villains, angry wolves, grumpy witches and fierce monsters are allowed when the child's story casts them that way. Never request a smile or remove a villain's menace for safety alone. A happy/friendly expression contradicting an explicitly menacing story moment is a story issue, not a safety fix.
 7. craft: a broken anatomy or a glaring rendering error (extra limbs, melted faces)
 
 Answer ONLY JSON:
 {"redraw": true|false, "issues": [{"type": "missing|extra|off_model|text|story|safety|craft", "severity": "minor|major", "detail": "..."}], "fix": "one or two imperative sentences for the illustrator, or empty"}
 Set redraw true only when at least one issue is major.`, [dataUrl(page), ...portraits.map(dataUrl)]);
   return { ...(r || { redraw: false, issues: [], fix: "" }), ms: Date.now() - t0, ok: !!r };
+  } finally { await finish(env); }
 }
 
 // POST .../scenes/:sid/image. First pictures are painted by the server queue (see `queue` below); a call
@@ -903,9 +947,12 @@ async function sceneImage(req, env, id, sid) {
   return paintPage(env, id, sid, b);
 }
 
-// One page (~45–80 s, plus ~11 s art check), everyone on it already has a portrait.
+// One page uses only its present characters' portraits; automatic pages run in the story consumer.
 // Every picture is a new version; nothing is overwritten, and the kid can go back (POST .../version).
 async function paintPage(env, id, sid, b) {
+  const pageStart = Date.now();
+  env = Object.assign(Object.create(env), { PAINT_TRACE: { ...env.PAINT_TRACE, story_id: id, sid, stage: "page" } });
+  try {
   const L = await loadStory(env, id);
   const c = L?.scenes.find((x) => x.sid === sid);
   if (!c) return json({ error: "page not found" }, 404);
@@ -927,22 +974,38 @@ async function paintPage(env, id, sid, b) {
     present.length ? `Characters in this picture (and nobody else): ${present.map((x) => `${x.name}: ${x.look}`).join("; ")}.`
       : "No characters in this picture, just the place.",
     `Scene: ${c.image_prompt || c.text}`,
+    `The child's words for this moment: ${c.text.slice(0, 1600)}`,
+    STORYBOOK_SAFETY,
     portraits.length ? `Reference portraits show exactly how ${present.map((x) => x.name).join(" and ")} look: match their faces, colors and clothes, but draw them in a full new scene, not on a plain background.` : "",
     kidRefs.length ? "The child gave reference pictures: use them for how those things should look." : "",
     prev ? (how === "text-changed" ? "One reference image is this page's previous picture; the story text changed, so update it to match the new text, keeping what still fits."
       : "One reference image is the previous version of THIS page: keep what works and apply the feedback.") : "",
     feedback ? `The child's feedback for this picture: "${feedback}". Follow it.` : "",
     fix ? `An art director checked an earlier attempt at this page and asked for these fixes: ${fix}` : "",
-    "No words, letters or speech bubbles in the picture. Friendly and safe for young kids. Landscape composition.",
+    "No words, letters or speech bubbles in the picture. Landscape composition.",
   ].filter(Boolean).join("\n");
   const refsFor = [...kidRefs, ...portraits, ...(prev ? [prev] : [])];
 
+  const pageVersions = [...JSON.parse(c.versions || "[]")];
+  async function keepAttempt(d, attemptHow) {
+    if (!d.ok) return null;
+    const key = `img/${id}/${sid}-${Date.now()}-${pageVersions.length}.png`;
+    await env.MEDIA.put(key, d.bytes, { httpMetadata: { contentType: "image/png" } });
+    pageVersions.push({ key, how: attemptHow, feedback, at: Date.now() });
+    await env.DB.prepare("UPDATE scenes SET versions=? WHERE account_id=? AND story_id=? AND sid=?").bind(JSON.stringify(pageVersions), env.account_id, id, sid).run();
+    return key;
+  }
   let d = await drawImage(env, prompt(""), refsFor), check = null;
+  let key = await keepAttempt(d, how);
   // The kid's own requests show the result as-is; pages the app drew by itself get the art director first.
   if (d.ok && how === "first" && env.ART_DIRECTOR !== "off") {
     const cast = (bible.characters || []).map((x) => x.name);
     check = await artDirector(env, { bytes: d.bytes }, portraits, present.map((x) => x.name), cast.filter((n) => !present.some((x) => x.name === n)), c);
-    if (check.redraw) { const d2 = await drawImage(env, prompt(check.fix), refsFor); if (d2.ok) d = { ...d2, ms: d.ms + check.ms + d2.ms }; }
+    if (check.redraw && (check.issues || []).some((issue) => issue.severity === "major")) {
+      const d2 = await drawImage(env, prompt(check.fix), refsFor);
+      const fixedKey = await keepAttempt(d2, "check-fix");
+      if (fixedKey) { key = fixedKey; d = { ...d2, ms: d.ms + check.ms + d2.ms }; }
+    }
   }
   if (!d.ok) {
     await env.DB.prepare("UPDATE scenes SET status=?, error=?, updated=? WHERE account_id=? AND story_id=? AND sid=?")
@@ -950,16 +1013,15 @@ async function paintPage(env, id, sid, b) {
     await log(env, "image", id, false, d.ms, 1, "images", 0, { sid, status: d.status, err: d.err });
     return json({ error: "the picture didn't work, try again", detail: d.err }, 502);
   }
-  const key = `img/${id}/${sid}-${Date.now()}.png`;
-  await env.MEDIA.put(key, d.bytes, { httpMetadata: { contentType: "image/png" } });
-  const versions = [...JSON.parse(c.versions || "[]"), { key, how: check?.redraw ? "check-fix" : how, feedback, at: Date.now() }];
+  const versions = pageVersions;
   await env.DB.prepare("UPDATE scenes SET status='done', stale=0, image_key=?, versions=?, updated=? WHERE account_id=? AND story_id=? AND sid=?")
     .bind(key, JSON.stringify(versions), Date.now(), env.account_id, id, sid).run();
   await log(env, "image", id, true, d.ms, 1, "images", 0, { sid, how, present: present.map((x) => x.name), refs: refsFor.length,
     check: check && { redraw: !!check.redraw, ms: check.ms, issues: (check.issues || []).map((i) => `${i.severity}:${i.type}`) },
-    quality_asked: d.quality_asked, quality_got: d.quality_got });
+    quality_asked: d.quality_asked, quality_got: d.quality_got, total_ms: Date.now() - pageStart });
   return json({ image_url: mediaUrl(key), ms: d.ms, quality: d.quality_got, present: present.map((x) => x.name),
     versions: versions.map((v) => ({ url: mediaUrl(v.key), how: v.how, at: v.at })), check: check && { redraw: !!check.redraw, issues: check.issues || [] } });
+  } finally { await finish(env); }
 }
 
 // POST .../scenes/:sid/version {url}: go back to an earlier picture (moves the pointer, deletes nothing).
@@ -1053,30 +1115,86 @@ async function bench(env, url) {
 // ---------- pictures paint on the server, not in the browser (Alan, 2026-11-02: "deeper fixes beat shallower ones") ----------
 // The browser used to fire every picture request itself, so a closed tab left pages stuck on "painting" and two
 // tabs drew every portrait twice. Now /book enqueues the story; the consumer draws missing portraits (one run per
-// story, cast_lock), then fans out one message per page. Pages paint even if the iPad sleeps. The UI just polls.
-async function enqueuePaint(env, id) {
+// story, cast_lock), then paints ready pages there (four per story, ten globally). The UI just polls.
+async function enqueuePaint(env, id, delaySeconds = 0) {
   if (!env.PAINT) return;
   const { results } = await env.DB.prepare("SELECT sid FROM scenes WHERE account_id=? AND story_id=? AND image_key IS NULL AND status IN ('pending','error')").bind(env.account_id, id).all();
-  if (results.length) await env.PAINT.send({ kind: "story", story_id: id, account_id: env.account_id });
+  if (results.length) await env.PAINT.send({ kind: "story", story_id: id, account_id: env.account_id, enqueued_at: Date.now() }, { delaySeconds });
 }
 
 async function paintStory(env, id) {
-  const cast = await castCore(env, id, { missing: true });
-  if (cast.status >= 400 && cast.status !== 404) throw new Error(`portraits ${cast.status}`);
-  const { results } = await env.DB.prepare("SELECT sid, updated, status FROM scenes WHERE account_id=? AND story_id=? AND image_key IS NULL").bind(env.account_id, id).all();
-  const todo = results.filter((c) => c.status === "pending" || c.status === "error"
-    || (c.status === "queued" && Date.now() - c.updated > 900000) || (c.status === "generating" && Date.now() - c.updated > 150000));
-  if (!todo.length) return;
-  const now = Date.now();
-  await env.DB.batch(todo.map((c) => env.DB.prepare("UPDATE scenes SET status='queued', updated=? WHERE account_id=? AND story_id=? AND sid=?").bind(now, env.account_id, id, c.sid)));
-  for (let i = 0; i < todo.length; i += 100) await env.PAINT.sendBatch(todo.slice(i, i + 100).map((c) => ({ body: { kind: "page", story_id: id, sid: c.sid, account_id: env.account_id } })));
+  if (!await loadStory(env, id)) return;
+  await env.DB.prepare("UPDATE scenes SET status='pending' WHERE account_id=? AND story_id=? AND image_key IS NULL AND status IN ('queued','generating') AND updated < ?").bind(env.account_id, id, Date.now() - 900000).run();
+  const painting = new Set(), failures = [];
+  let castDone = false;
+  let dispatch = Promise.resolve();
+  // The durable story message owns the whole book. Delete per-page queue hops: a single cold
+  // queue consumer can now paint in parallel without waiting for Cloudflare to scale it up.
+  const ready = () => {
+    dispatch = dispatch.then(async () => {
+      const current = await loadStory(env, id);
+      if (!current) return;
+      const bible = JSON.parse(current.s.bible || "{}"), map = castMap(current.s);
+      for (const c of current.scenes) {
+        if (painting.size >= (env.MODE === "hosted" && !castDone ? 1 : 4)) break;
+        if (c.image_key || !["pending", "error"].includes(c.status)) continue;
+        if (inScene(bible, c).some((x) => !map[x.name])) continue;
+        // Claim synchronously before launching so concurrent callbacks/stories cannot duplicate work.
+        if (!await claimPage(env, id, c.sid)) continue;
+        await log(env, "paint_queue", id, true, 0, 1, "messages", 0, { sid: c.sid, queue_kind: "inline-page", attempt: env.PAINT_TRACE?.attempt || 1 });
+        const task = paintQueued(env, id, c.sid, true).catch((e) => failures.push(e)).finally(() => painting.delete(task));
+        painting.add(task);
+      }
+    });
+    return dispatch;
+  };
+  try {
+    await ready();
+    const cast = await castCore(env, id, { missing: true }, ready);
+    if (cast.status >= 400 && cast.status !== 404) throw new Error(`portraits ${cast.status}`);
+    castDone = true;
+    await ready();
+    while (painting.size) {
+      await Promise.race(painting);
+      if (failures.length) break;
+      await ready();
+    }
+  } finally {
+    await Promise.allSettled(painting); // Every in-flight provider call finishes before this message exits.
+  }
+  if (failures.length) throw failures[0];
+  // More than one portrait batch (three hosted, six self), or shared page slots occupied by another book.
+  await enqueuePaint(env, id, 5);
 }
 
-async function paintQueued(env, id, sid) {
+async function claimPage(env, id, sid) {
+  const now = Date.now();
+  // Global page ceiling stays ten, even when several story consumers are active. D1 serializes this
+  // single statement; a read-then-write counter would let concurrent stories exceed the ceiling.
+  const claim = await env.DB.prepare(`UPDATE scenes SET status='generating', updated=?
+    WHERE account_id=? AND story_id=? AND sid=? AND image_key IS NULL
+    AND (status IN ('queued','pending','error') OR updated < ?)
+    AND (SELECT COUNT(*) FROM scenes WHERE status='generating' AND updated > ?) < 10
+    AND (SELECT COUNT(*) FROM scenes WHERE account_id=? AND story_id=? AND status='generating' AND updated > ?) < 4`)
+    .bind(now, env.account_id, id, sid, now - 900000, now - 900000, env.account_id, id, now - 900000).run();
+  return !!claim.meta.changes;
+}
+
+async function paintQueued(env, id, sid, claimed = false) {
   const c = await env.DB.prepare("SELECT image_key, stale, status FROM scenes WHERE account_id=? AND story_id=? AND sid=?").bind(env.account_id, id, sid).first();
   if (!c || (c.image_key && !c.stale)) return; // gone, or painted meanwhile
-  const r = await paintPage(env, id, sid, {});
-  if (r.status >= 500) throw new Error(`page ${r.status}`); // the queue retries (max_retries in wrangler.toml)
+  if (!claimed && !await claimPage(env, id, sid)) {
+    await enqueuePaint(env, id, 5);
+    return;
+  }
+  try {
+    const r = await paintPage(env, id, sid, {});
+    if (r.status >= 500) throw new Error(`page ${r.status}`);
+  } catch (e) {
+    await env.DB.prepare("UPDATE scenes SET status='error', error=?, updated=? WHERE account_id=? AND story_id=? AND sid=? AND image_key IS NULL")
+      .bind(String(e.message || e).slice(0, 200), Date.now(), env.account_id, id, sid).run();
+    throw e;
+  } // the queue retries (max_retries in wrangler.toml)
 }
 
 // ---------- grown-ups analytics (Alan, 2026-11-02: "what analytics can we use") ----------
@@ -1134,6 +1252,19 @@ async function stats(env, url) {
     speed: speedOut, art_director: { pages_checked: checks.length, redrawn: checks.filter((c) => c.redraw).length, issues },
     cost: { elevenlabs_month_usd: +elevenMonth.toFixed(4), elevenlabs_period_usd: +events.filter((e) => e.kind === "tts" && e.ok).reduce((t, e) => t + (e.cost_usd || 0), 0).toFixed(4), monthly_cap_usd: null },
     failures });
+}
+
+// Provider timing includes transport, hub queue and provider work; it does not claim to separate them.
+async function chatCompletion(env, body) {
+  const start = Date.now();
+  try {
+    const result = await providerChatCompletion(env, body);
+    if (env.PAINT_TRACE) await log(env, "paint_stage", env.PAINT_TRACE.story_id, true, Date.now() - start, 1, "calls", 0, { ...env.PAINT_TRACE, model: body.model, status: result.status });
+    return result;
+  } catch (e) {
+    if (env.PAINT_TRACE) await log(env, "paint_stage", env.PAINT_TRACE.story_id, false, Date.now() - start, 1, "calls", 0, { ...env.PAINT_TRACE, model: body.model, status: e.status || 500 });
+    throw e;
+  }
 }
 
 // ---------- utils ----------

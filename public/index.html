@@ -174,10 +174,11 @@
     </form>
   </div>
 
-  <!-- The printing press is resting (hosted pause or the month's allowance used): writing goes on, words are saved -->
+  <!-- The printing press is resting (hosted pause or the month's allowance used): writing goes on, words are saved.
+       After the five free books it asks for a grown-up instead (no prices on kid screens). -->
   <aside class="press-note" id="press-note" role="status" hidden>
     <span class="press-ico" aria-hidden="true"><svg><use href="#i-press"/></svg></span>
-    <span><b>The printing press is resting.</b> Keep writing. Your words are saved, and pictures and reading aloud will be back soon.</span>
+    <span><b id="press-h">The printing press is resting.</b> <span id="press-p">Keep writing. Your words are saved, and pictures and reading aloud will be back soon.</span> <a class="press-go" id="press-go" href="/account/?plan=1" hidden>For grown-ups</a></span>
     <button class="x" id="press-x" type="button" aria-label="Close"><svg><use href="#i-close"/></svg></button>
   </aside>
 

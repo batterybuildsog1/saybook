@@ -1,4 +1,4 @@
-export const NOTICE_VERSION = '2026-11-02';
+export const NOTICE_VERSION = '2026-11-02.2'; // .2: the signup checkbox is the consent; payment unlocks nothing
 export const encoder = new TextEncoder();
 export const now = () => Date.now();
 export const id = () => crypto.randomUUID();
@@ -46,7 +46,7 @@ export function safeAccount(account) {
   subscription_status: account.subscription_status, subscription_end: account.subscription_end,
   cancel_at_period_end: !!account.cancel_at_period_end, recordings_enabled: !!account.recordings_enabled,
   consent_version: account.consent_version, consent_at: account.consent_at, status: account.status,
-  created:account.created, plan:account.subscription_status, child_access:!!account.parent_verified_at, parent_verified_at:account.parent_verified_at, monthly_price_usd: 19.50 };
+  created:account.created, plan:account.subscription_status, billing_plan:account.billing_plan||null, child_access:!!account.parent_verified_at, parent_verified_at:account.parent_verified_at, internal:!!account.internal };
 }
 export function testRequest(req, env) {
  return enabled(env.HOSTED_TEST_MODE) && env.STRIPE_MODE !== 'live' &&

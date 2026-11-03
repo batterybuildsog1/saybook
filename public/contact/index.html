@@ -1,6 +1,30 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Contact us · Saybook</title><link rel="stylesheet" href="/grown.css"><style>.field textarea{min-height:180px;padding:14px;border:0;background:#fbf8f2;color:var(--paper-ink);font:inherit;resize:vertical}.honey{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}</style></head>
-<body><header class="bar"><a class="mark" href="/home/">Saybook</a><nav><a href="/signin/">Sign in</a></nav></header>
-<main class="wrap"><section class="sheet"><h1>Contact us</h1><p>Questions, feedback, or something that needs fixing? We’re here.</p><p>Or email <a href="mailto:support@saybook.app">support@saybook.app</a>.</p>
-<form id="contact"><label class="field"><span>Your email</span><input name="email" type="email" autocomplete="email" maxlength="254" required></label><label class="field"><span>Message</span><textarea name="message" minlength="10" maxlength="5000" required></textarea></label><p class="soft small">Please leave out children’s names, stories, and other private details.</p><div class="honey" aria-hidden="true"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div><button class="btn" type="submit" disabled>Send message</button><p id="status" role="status" style="margin-top:16px"></p></form>
-</section></main><footer class="foot"><a href="/legal/privacy">Privacy</a><a href="/home/">Back to Saybook</a></footer><script type="module" src="/contact/contact.js"></script></body></html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Contact us · Saybook</title>
+<link rel="stylesheet" href="/grown.css">
+<style>/* taste-skill-ignore: the honeypot is off screen, not a rule */.honey{position:absolute;left:-10000px;width:1px;height:1px;overflow:hidden}</style>
+</head>
+<body>
+<header class="bar"><a class="mark" href="/home/" data-home>Saybook</a><nav><a href="/signin/" id="who-link">Sign in</a></nav></header>
+<main class="stage">
+  <section class="slip one" aria-labelledby="contact-h">
+    <div class="slip-main">
+      <h1 id="contact-h">Contact us</h1>
+      <p class="lede">Questions, feedback, or something that needs fixing? Write here, or email <a href="mailto:support@saybook.app">support@saybook.app</a>.</p>
+      <form id="contact" style="margin-top:26px">
+        <label class="field"><span>Your email</span><input name="email" type="email" autocomplete="email" maxlength="254" required></label>
+        <label class="field"><span>Message</span><textarea name="message" minlength="10" maxlength="5000" required></textarea></label>
+        <p class="opt">Please leave out children’s names, stories, and other private details.</p>
+        <div class="honey" aria-hidden="true"><label>Website<input name="website" tabindex="-1" autocomplete="off"></label></div>
+        <div class="row" style="margin-top:18px"><button class="btn" type="submit" disabled>Send message</button><p id="status" role="status"></p></div>
+      </form>
+    </div>
+  </section>
+</main>
+<footer class="foot"><a href="/legal/privacy">Privacy</a><a href="/legal/terms">Terms</a><a href="/home/" id="home-link">Back to Saybook</a><span class="seller">© 2026 HVAC Calc LLC</span></footer>
+<script type="module" src="/contact/contact.js"></script>
+</body>
+</html>

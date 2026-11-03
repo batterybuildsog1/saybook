@@ -7,6 +7,7 @@ import { accountRoute } from './accounts.js';
 import { usageResponse } from './usage.js';
 export { who, parent } from './auth.js';
 export { allow, charge, finish, providerLimit } from './usage.js';
+export { bookGate } from './books.js';
 export async function route(req,env,ctx) {
  if(env.MODE!=='hosted')return null;
  const url=new URL(req.url),p=url.pathname;

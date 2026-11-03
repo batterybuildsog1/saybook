@@ -8,77 +8,71 @@
 <link rel="stylesheet" href="/grown.css">
 </head>
 <body>
-<header class="bar"><a class="mark" href="/home/" data-app-name>Saybook</a><nav><a href="/home/#price">Pricing</a></nav></header>
+<header class="bar"><a class="mark" href="/home/" data-app-name>Saybook</a><nav><a href="/signin/?new=1" id="to-new">New family</a><a href="/signin/" id="to-in" hidden>Sign in</a></nav></header>
 <main class="stage">
-  <div class="card" id="card">
-    <div class="tabs" role="tablist" aria-label="Sign in or create an account">
-      <button role="tab" id="t-in" aria-selected="true" aria-controls="f-in">Sign in</button>
-      <button role="tab" id="t-new" aria-selected="false" aria-controls="f-new">New family</button>
-    </div>
-
-    <form id="f-in" role="tabpanel" aria-labelledby="t-in" novalidate>
-      <h1>Welcome back</h1>
-      <p class="soft">For parents and guardians. Kids don’t need a password.</p>
-      <label class="field"><span>Email</span><input name="email" type="email" autocomplete="username" required></label>
-      <label class="field"><span>Password</span><input name="password" type="password" autocomplete="current-password" required></label>
-      <p class="err" role="alert" hidden></p>
-      <div class="row"><button class="btn" type="submit">Sign in</button><button class="link" type="button" id="to-recover">Forgot your password?</button></div>
-    </form>
-
-    <form id="f-new" role="tabpanel" aria-labelledby="t-new" novalidate hidden>
-      <h1>Start a family shelf</h1>
-      <p class="soft">A parent or guardian makes the account. Enrollment is open in the US for up to 10 families. Kids get their own shelves inside it.</p>
-      <label class="field"><span>Your email</span><input name="email" type="email" autocomplete="email" required></label>
-      <label class="field"><span>Password</span><input name="password" type="password" autocomplete="new-password" minlength="8" required aria-describedby="pw-hint"><small id="pw-hint">At least 8 characters.</small></label>
+  <!-- A new family: the permission slip. The two ticks are the consent; the stub says what it costs: nothing yet. -->
+  <form id="f-new" class="slip" novalidate hidden aria-labelledby="new-h">
+    <div class="slip-main">
+      <h1 id="new-h"><span data-app-name>Saybook</span> for your family</h1>
+      <p class="lede">For a parent or guardian. Kids don’t get passwords; they pick their own shelf.</p>
+      <div class="pair">
+        <label class="field"><span>Email</span><input name="email" type="email" autocomplete="email" required></label>
+        <label class="field"><span>Password</span><input name="password" type="password" autocomplete="new-password" minlength="8" required aria-describedby="pw-hint"><small id="pw-hint">At least 8 characters.</small></label>
+      </div>
+      <p class="sign">Signing means</p>
       <label class="check"><input type="checkbox" name="parent" required><span>I’m a parent or legal guardian, and 18 or older.</span></label>
       <label class="check"><input type="checkbox" name="consent" required><span>I’ve read the <a href="/legal/parents" target="_blank">notice to parents</a> and agree to how <span data-app-name>Saybook</span> handles my children’s stories.</span></label>
-      <label class="check"><input type="checkbox" name="analytics_consent"><span>Help improve Saybook with optional usage data. Parent pages may have masked recordings. <a href="/legal/privacy">Privacy</a></span></label>
+      <label class="check opt"><input type="checkbox" name="analytics_consent"><span>Optional: help improve <span data-app-name>Saybook</span> with usage data. Parent pages may have masked recordings. <a href="/legal/privacy">Privacy</a></span></label>
       <p class="err" role="alert" hidden></p>
-      <button class="btn" type="submit">Create account</button>
-      <p class="soft small" style="margin-top:16px">Next you’ll start the <span data-price>$19.50</span> monthly plan. Paying also confirms you’re the parent or guardian; there’s no separate charge for that.</p>
-    </form>
+    </div>
+    <div class="stub">
+      <p class="stub-fig" data-free-books>5</p>
+      <p class="stub-x">books free.<br>No card.</p>
+      <button class="stub-act" type="submit">Create account</button>
+    </div>
+  </form>
 
-    <form id="f-recover" novalidate hidden>
-      <h1>New password</h1>
-      <p class="soft">Use the recovery code you saved when you made the account.</p>
-      <label class="field"><span>Email</span><input name="email" type="email" autocomplete="username" required></label>
-      <label class="field"><span>Recovery code</span><input name="recovery_code" autocomplete="off" spellcheck="false" required></label>
+  <form id="f-in" class="slip one" novalidate aria-labelledby="in-h">
+    <div class="slip-main">
+      <h1 id="in-h">Welcome back</h1>
+      <p class="lede">For parents and guardians. Kids don’t need a password.</p>
+      <div class="pair">
+        <label class="field"><span>Email</span><input name="email" type="email" autocomplete="username" required></label>
+        <label class="field"><span>Password</span><input name="password" type="password" autocomplete="current-password" required></label>
+      </div>
+      <p class="err" role="alert" hidden></p>
+      <div class="row"><button class="btn" type="submit">Sign in</button><button class="link" type="button" id="to-recover">Forgot your password?</button></div>
+    </div>
+  </form>
+
+  <form id="f-recover" class="slip one" novalidate hidden aria-labelledby="rec-h">
+    <div class="slip-main">
+      <h1 id="rec-h">New password</h1>
+      <p class="lede">Use the recovery code you saved when you made the account.</p>
+      <div class="pair">
+        <label class="field"><span>Email</span><input name="email" type="email" autocomplete="username" required></label>
+        <label class="field"><span>Recovery code</span><input name="recovery_code" autocomplete="off" spellcheck="false" required></label>
+      </div>
       <label class="field"><span>New password</span><input name="password" type="password" autocomplete="new-password" minlength="8" required><small>At least 8 characters.</small></label>
       <p class="err" role="alert" hidden></p>
       <div class="row"><button class="btn" type="submit">Set password</button><button class="link" type="button" id="back-in">Back to sign in</button></div>
-    </form>
+    </div>
+  </form>
 
-    <section id="saved" hidden aria-labelledby="saved-h">
+  <section id="saved" class="slip one" hidden aria-labelledby="saved-h">
+    <div class="slip-main">
       <h1 id="saved-h">Save this code</h1>
-      <p>It’s the only way back in if you forget your password. We can’t show it again.</p>
+      <p class="lede">It’s the only way back in if you forget your password. We can’t show it again.</p>
       <code class="code" id="code"></code>
-      <div class="row" style="margin-bottom:18px"><button class="btn quiet" type="button" id="copy">Copy</button><button class="btn quiet" type="button" id="dl">Download</button></div>
+      <div class="row" style="margin-bottom:22px"><button class="btn" type="button" id="copy">Copy</button><button class="link" type="button" id="dl">Download</button></div>
       <label class="check"><input type="checkbox" id="kept"><span>I’ve saved my recovery code somewhere safe.</span></label>
       <button class="btn" type="button" id="go" disabled>Continue</button>
-    </section>
+    </div>
+  </section>
 
-    <form id="f-wait" novalidate hidden aria-labelledby="wait-h">
-      <h1 id="wait-h">We’re full for now</h1>
-      <p><span data-app-name>Saybook</span> takes a small number of families while it grows. Leave an email and we’ll write when there’s room. Nothing else is asked, and no payment.</p>
-      <label class="field"><span>Your email</span><input name="email" type="email" autocomplete="email" required></label>
-      <p class="err" role="alert" hidden></p>
-      <div class="row"><button class="btn" type="submit">Join the waitlist</button><a class="link" id="wait-repo">Or run it yourself, free</a></div>
-    </form>
-
-    <section id="waited" hidden aria-labelledby="waited-h">
-      <h1 id="waited-h">You’re on the list</h1>
-      <p id="waited-p">We’ll email you when there’s room for your family.</p>
-      <a class="btn quiet" href="/home/">Back to the start</a>
-    </section>
-
-    <section id="closed" hidden aria-labelledby="closed-h">
-      <h1 id="closed-h">Enrollment is paused</h1>
-      <p><span data-app-name>Saybook</span> isn’t taking new families right now. It’s free and open source, so you can run your own copy today.</p>
-      <div class="row"><a class="btn" id="repo">Run it yourself</a><button class="link" type="button" id="closed-back">Sign in instead</button></div>
-    </section>
-  </div>
+  <p class="after" id="new-after" hidden>Next you’ll save a recovery code and add your writers.</p>
 </main>
-<footer class="foot"><span><span data-app-name>Saybook</span> is sold by <span data-seller>HVAC Calc LLC</span>.</span><a href="/legal/privacy">Privacy</a><a href="/legal/terms">Terms</a><a href="/legal/parents">Notice to parents</a><p>Questions? <a href="mailto:support@saybook.app">support@saybook.app</a> · <a href="/contact/">Contact us</a></p>
+<footer class="foot"><a href="/legal/privacy">Privacy</a><a href="/legal/terms">Terms</a><a href="/legal/parents">Notice to parents</a><a href="/contact/">Contact us</a><a href="mailto:support@saybook.app">support@saybook.app</a><span class="seller">© 2026 <span data-seller>HVAC Calc LLC</span></span>
 <div data-analytics-choice hidden></div>
 </footer>
 <script type="module" src="/signin/signin.js"></script>

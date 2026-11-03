@@ -4,7 +4,7 @@
 
 Saybook is a family writing studio built on a Cloudflare Worker, D1, R2, Queues and Workers AI. Models plan page breaks and illustrations; they never replace the writer's story text. Punctuation suggestions are optional and checked to preserve letters and numbers. A child can record their own reading; no voice cloning is involved.
 
-Two modes share the same core: **self** is one family with your own provider keys and an optional passcode. **hosted** adds parent accounts, paid consent, subscriptions and usage limits; see [the hosted guide](docs/HOSTED.md). The working public name is Saybook; `APP_NAME` lives in `src/config.js` and is mirrored in `public/config.js`.
+Two modes share the same core: **self** is one family with your own provider keys and an optional passcode. **hosted** adds parent accounts with a consent checkbox, 5 free books per family, then a subscription ($19.50/month or $140.40/year on saybook.app) with usage limits; see [the hosted guide](docs/HOSTED.md). The working public name is Saybook; `APP_NAME` lives in `src/config.js` and is mirrored in `public/config.js`.
 
 ## The three-minute self-host path
 

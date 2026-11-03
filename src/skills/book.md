@@ -11,15 +11,14 @@ Plan:
 2. For each page: `present` lists only the characters actually in that moment (someone at home is not on
    the moon), and `image_prompt` STARTS with `In this picture: <names>. Where: <the place, in a few words>.`
    then describes the picture: who is doing what, expression, framing, time of day, mood. Put the place
-   first. No text or letters in pictures. Scary becomes exciting, never gory; fights become slapstick or
-   clever escapes. No "cartoony" wording.
+   first. No text or letters in pictures. Keep the story's roles and emotions: storybook-menacing, sly, grumpy or fierce villains are welcome; do not turn them friendly or smiling. Depict fantasy peril without gore, realistic violence, injury detail or horror imagery. No "cartoony" wording.
 3. **Chapters**: only where there's a clear big shift and the story is long (roughly 400+ words so far).
    Never invent a chapter title: use one only if the child said it ("chapter two, the storm" → "The
    Storm"); otherwise `null`. Only list chapters that start inside your range.
 4. **Bible**: return the full bible. Keep every existing character and look exactly as given (never change
    one marked `"from_drawing": true`, and keep that field). Add characters that first appear in your range,
    each with a fixed look (species, age, size, colours, clothes, one signature detail; if the child didn't
-   say, choose something fitting). Natural proportions, not big-headed. Real people or famous characters
+   say, choose something fitting). Include their role and characteristic expression from the child's story in the look; a monster is not automatically a villain. Natural proportions, not big-headed. Real people or famous characters
    from movies get an original look inspired by the child's description, not a copy of the film. `style` =
    only mood and palette words for this book (the art medium is fixed by the app); keep it once set.
 

@@ -1,9 +1,8 @@
 import { captureServer } from "../analytics.js";
-import { enrollment, waitlist } from './enrollment.js';
+import { isInternalEmail } from './internal.js';
 import { now, id, random, sha, hex, unhex, encoder, fail, json, body, enabled, safeAccount, NOTICE_VERSION, testRequest, constantEqual, requireCountry } from './util.js';
 const COOKIE = '__Host-storybook';
 const SESSION_MS = 30 * 86400000;
-const PARENT_MS = 15 * 60000;
 const ITERATIONS = 100000; // Workers WebCrypto's PBKDF2 iteration ceiling; 256-bit random salt.
 const DUMMY_SALT = 'a'.repeat(64);
 export async function passwordHash(password, salt, env) {
@@ -28,6 +27,9 @@ export async function session(req, env, includeDeleting = false) {
  JOIN hosted_accounts a ON a.account_id=s.account_id WHERE s.token_hash=? AND s.expires>?`).bind(await sha(token), now()).first();
  if (!row || (!includeDeleting && row.status !== 'active')) return null;
  if(row.last_active<now()-86400000)await env.DB.prepare('UPDATE hosted_accounts SET last_active=? WHERE account_id=?').bind(now(),row.account_id).run();
+ // INTERNAL_EMAILS can change after signup; keep the stored insider tag in step with the rule.
+ const internal=isInternalEmail(row.email,env)?1:0;
+ if(row.internal!==internal){await env.DB.prepare('UPDATE hosted_accounts SET internal=? WHERE account_id=?').bind(internal,row.account_id).run();row.internal=internal;}
  return row;
 }
 export async function who(req, env) {
@@ -37,13 +39,12 @@ export async function who(req, env) {
 export async function parent(req, env, includeDeleting = false) {
  const a = await session(req, env, includeDeleting);
  if (!a) fail(401, 'Parent sign-in required');
- if (a.parent_until <= now()) fail(403, 'parent_auth');
  return a;
 }
 async function startSession(env, a, status = 200, recoveryCode) {
  const token = random();
  await env.DB.prepare('INSERT INTO hosted_sessions(token_hash,account_id,created,expires,parent_until) VALUES(?,?,?,?,?)')
-  .bind(await sha(token), a.account_id, now(), now()+SESSION_MS, now()+PARENT_MS).run();
+  .bind(await sha(token), a.account_id, now(), now()+SESSION_MS, 0).run();
  return json({account:safeAccount(a), ...(recoveryCode ? {recovery_code:recoveryCode} : {})},status,{'set-cookie':cookie(token,SESSION_MS/1000)});
 }
 async function throttle(req, env, email) {
@@ -59,8 +60,6 @@ async function throttle(req, env, email) {
  await env.DB.prepare('DELETE FROM hosted_auth_limits WHERE expires<?').bind(now()).run();
 }
 export async function authRoute(req, env, path) {
- if(path==='/auth/enrollment'&&req.method==='GET')return json(await enrollment(env));
- if(path==='/auth/waitlist'&&req.method==='POST'){const b=await body(req),email=emailValue(b.email);await throttle(req,env,email);return waitlist(email,env);}
  if (req.method !== 'POST') return json({error:'not found'},404);
  if (path === '/auth/signup') {
   // No customer account can be created with internal provider keys. This gate precedes parsing/DB writes.
@@ -69,20 +68,18 @@ export async function authRoute(req, env, path) {
   requireCountry(req,env);
   const b = await body(req), email = emailValue(b.email);
   await throttle(req,env,email);
-  const capacityEnv=Object.create(env);
-  if(testRequest(req,env)&&req.headers.get('x-hosted-test-max-accounts'))capacityEnv.HOSTED_MAX_ACCOUNTS=req.headers.get('x-hosted-test-max-accounts');
-  if((await enrollment(capacityEnv)).waitlist_only)return waitlist(email,env);
   validatePassword(b.password);
   if (b.parent !== true || b.consent !== true || b.notice_version !== NOTICE_VERSION) fail(400,'A parent or legal guardian must read and accept the current notice');
   if (typeof b.recordings_enabled !== 'undefined' && typeof b.recordings_enabled !== 'boolean') fail(400,'Invalid recording permission');
-  const accountId=id(), salt=random(), recoveryCode=random(24), at=now();
+  const accountId=id(), salt=random(), recoveryCode=random(24), at=now(), internal=isInternalEmail(email,env)?1:0;
   const hash=await passwordHash(b.password,salt,env);
   try {
    await env.DB.batch([
-    env.DB.prepare(`INSERT INTO hosted_accounts(account_id,email,password_hash,password_salt,recovery_hash,created,consent_version,consent_at,recordings_enabled)
-    VALUES(?,?,?,?,?,?,?,?,?)`).bind(accountId,email,hash,salt,await sha(recoveryCode),at,NOTICE_VERSION,at,b.recordings_enabled?1:0),
+    // The parent's own ticks are the consent (Alan, 2026-11-02: "email and checkbox is fine"): kids can write right away.
+    env.DB.prepare(`INSERT INTO hosted_accounts(account_id,email,password_hash,password_salt,recovery_hash,created,consent_version,consent_at,parent_verified_at,recordings_enabled,internal)
+    VALUES(?,?,?,?,?,?,?,?,?,?,?)`).bind(accountId,email,hash,salt,await sha(recoveryCode),at,NOTICE_VERSION,at,at,b.recordings_enabled?1:0,internal),
     env.DB.prepare('INSERT INTO hosted_consent(account_id,id,version,action,at) VALUES(?,?,?,?,?)').bind(accountId,id(),NOTICE_VERSION,'parent_notice_accepted',at),
-    env.DB.prepare("UPDATE analytics_population SET signups=signups+1 WHERE id=1 AND ? NOT LIKE '%@example.invalid' AND ? NOT LIKE '%@example.com'").bind(email,email),
+    env.DB.prepare('UPDATE analytics_population SET signups=signups+1 WHERE id=1 AND ?=0').bind(internal),
    ]);
   } catch(e) { if (/unique/i.test(String(e))) fail(409,'Account could not be created. Try signing in.'); throw e; }
   await env.DB.prepare('INSERT INTO analytics_preferences(account_id,enabled,at) VALUES(?,?,?)').bind(accountId,b.analytics_consent===true?1:0,at).run();
@@ -100,9 +97,6 @@ export async function authRoute(req, env, path) {
  }
  if (path === '/auth/recover') {
   const b=await body(req),email=emailValue(b.email); await throttle(req,env,email);
-  const capacityEnv=Object.create(env);
-  if(testRequest(req,env)&&req.headers.get('x-hosted-test-max-accounts'))capacityEnv.HOSTED_MAX_ACCOUNTS=req.headers.get('x-hosted-test-max-accounts');
-  if((await enrollment(capacityEnv)).waitlist_only)return waitlist(email,env);
   validatePassword(b.password);
   const a=await env.DB.prepare('SELECT * FROM hosted_accounts WHERE email=?').bind(email).first();
   if (!a || typeof b.recovery_code!=='string' || !constantEqual(await sha(b.recovery_code),a.recovery_hash)) fail(401,'Recovery details did not match');
@@ -118,16 +112,10 @@ export async function authRoute(req, env, path) {
   if (a) await env.DB.prepare('DELETE FROM hosted_sessions WHERE account_id=? AND token_hash=?').bind(a.account_id,a.token_hash).run();
   return new Response(null,{status:204,headers:{'set-cookie':cookie('',0),'cache-control':'no-store'}});
  }
- if (path === '/auth/parent') {
-  const a=await session(req,env,true); if(!a) fail(401,'Parent sign-in required');
-  const b=await body(req); await throttle(req,env,a.email);
-  if(typeof b.password!=='string'||b.password.length>256||!constantEqual(await passwordHash(b.password,a.password_salt,env),a.password_hash)) fail(401,'Password did not match');
-  await env.DB.prepare('UPDATE hosted_sessions SET parent_until=? WHERE account_id=? AND token_hash=?').bind(now()+PARENT_MS,a.account_id,a.token_hash).run();
-  return json({ok:true,parent_until:now()+PARENT_MS});
- }
- if(path==='/auth/lock-parent') {
-  const a=await session(req,env,true);
-  if(a) await env.DB.prepare('UPDATE hosted_sessions SET parent_until=0 WHERE account_id=? AND token_hash=?').bind(a.account_id,a.token_hash).run();
+ // Cached clients may still call these endpoints. Account access now follows the
+ // normal signed-in session, with no separate parent timer or password recheck.
+ if (path === '/auth/parent' || path === '/auth/lock-parent') {
+  await parent(req,env,true);
   return json({ok:true});
  }
  return null;

@@ -1,5 +1,9 @@
 import { analyticsConfig,captureSafe,withdrawAnalytics } from '/analytics-config.js';
 const LS_KEY='saybook.analytics';
+// Insider device (src/hosted/internal.js): set once a signed-in insider account says so, so landing/sign-in visits on
+// this device are tagged too. Only the boolean is stored; never the email.
+const INSIDER_KEY='saybook.analytics.internal';
+export const insiderDevice={get(){try{return localStorage.getItem(INSIDER_KEY)==='1';}catch{return false;}},set(on){try{if(on)localStorage.setItem(INSIDER_KEY,'1');else localStorage.removeItem(INSIDER_KEY);}catch{}}};
 export const analyticsChoice={get(){try{return localStorage.getItem(LS_KEY)==='on';}catch{return false;}},set(on){try{if(on)localStorage.setItem(LS_KEY,'on');else localStorage.removeItem(LS_KEY);}catch{}}};
 export const analyticsOffered=cfg=>typeof cfg?.analytics_key==='string'&&cfg.analytics_key.startsWith('phc_')&&cfg.analytics_budget_verified===true;
 let ph=null,starting=null;
@@ -18,10 +22,11 @@ export async function startAnalytics(cfg,{surface='parent',accountId=''}={}) {
   // bootstrap avoids identify/person events and never puts an email or raw account id in persistence.
   const identity=/^[a-f0-9]{64}$/.test(accountId)?accountId:anonymous;
   ph=window.posthog.init(cfg.analytics_key,{...options,bootstrap:{distinctID:identity,isIdentifiedID:false}})||window.posthog;
+  if(insiderDevice.get())ph.register({internal:true});
   captureSafe(ph,'landing_viewed',{route:location.pathname});
   return ph;
  })();
  try{return await starting;}finally{starting=null;}
 }
 export function capture(event,props){if(ph)captureSafe(ph,event,props);}
-export function stopAnalytics(){analyticsChoice.set(false);if(ph)withdrawAnalytics(ph);ph=null;try{localStorage.removeItem('saybook.analytics.id');}catch{};}
+export function stopAnalytics(){analyticsChoice.set(false);if(ph)withdrawAnalytics(ph);ph=null;try{localStorage.removeItem('saybook.analytics.id');}catch{};insiderDevice.set(false);}

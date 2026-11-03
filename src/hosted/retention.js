@@ -10,7 +10,7 @@ export async function scheduled(env) {
   for(const {account_id} of page.results) {
    const a=await env.DB.prepare('SELECT * FROM hosted_accounts WHERE account_id=?').bind(account_id).first();
    if(!a)continue;
-   const expired=a.status==='deleting'||(!a.parent_verified_at&&a.created<at-7*DAY)||(a.parent_verified_at&&Math.max(a.last_active,a.created)<at-365*DAY);
+   const expired=a.status==='deleting'||Math.max(a.last_active,a.created)<at-365*DAY;
    if(expired) {
     try { await purgeAccount(null,env,a); }
     catch { console.error('Hosted retention account cleanup needs operator review'); }
@@ -30,8 +30,8 @@ export async function scheduled(env) {
   env.DB.prepare('DELETE FROM contact_limits WHERE expires<?').bind(at),
   env.DB.prepare("DELETE FROM hosted_auth_limits WHERE account_id='' AND expires<?").bind(at),
   env.DB.prepare("DELETE FROM hosted_breakers WHERE account_id='__global__' AND until_at<?").bind(at),
+  // The waitlist is retired (Alan, 2026-11-03: no family cap); this stays until any rows it held have expired.
   env.DB.prepare('DELETE FROM hosted_waitlist WHERE expires<?').bind(at),
-  env.DB.prepare('DELETE FROM hosted_enrollment WHERE expires<?').bind(at),
   env.DB.prepare("DELETE FROM hosted_global_usage WHERE account_id='__global__' AND day<?").bind(at-396*DAY),
  ]);
 }

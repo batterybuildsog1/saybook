@@ -141,7 +141,6 @@ svg .fill { fill: currentColor; stroke: none; }
 .tag::before { content: ""; position: absolute; left: 16px; top: 50%; width: 10px; height: 10px; margin-top: -5px; border-radius: 50%; background: var(--bg); }
 .tag.on { background: var(--tag); transform: rotate(calc(-2deg * var(--m))) translateY(calc(-4px * var(--m))); }
 .tag.add { padding: 0 16px 0 32px; font-size: 24px; background: var(--surface); }
-.tag .rm { margin: 0 -10px 0 8px; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-size: 14px; background: color-mix(in srgb, var(--ink) 12%, transparent); }
 .tag-new { display: inline-flex; align-items: center; gap: 6px; height: 56px; padding: 0 6px 0 16px; border-radius: 10px; background: var(--surface); box-shadow: var(--shadow); }
 .tag-new input { width: 140px; min-width: 0; border: 0; outline: none; background: none; font-family: var(--font-display); font-size: 21px; color: var(--ink); }
 .tag-new button { width: 46px; height: 46px; border-radius: 8px; display: grid; place-items: center; font-size: 22px; background: var(--accent); color: var(--on-accent); }

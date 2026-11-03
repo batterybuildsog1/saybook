@@ -1,9 +1,14 @@
 import { captureServer } from "../analytics.js";
-import { reserveEnrollment, enrollmentUpdate, PAINTING_NOTICE } from './enrollment.js';
-import { now, encoder, hex, constantEqual, fail, json, enabled, testRequest, NOTICE_VERSION, requireCountry } from './util.js';
+import { now, encoder, hex, sha, constantEqual, fail, json, body, enabled, testRequest, requireCountry } from './util.js';
 const STRIPE_BASE='https://api.stripe.com/v1';
 const STRIPE_VERSION='2026-10-28.endive';
-const CONSENT_TEXT='By paying, you confirm you are the parent or legal guardian and consent to Saybook collecting and using your child’s stories, images and temporary dictation audio as described in the parent notice. Saved voice recordings and public sharing are optional and off unless you enable them. HVAC Calc LLC operates Saybook. You can withdraw consent and delete the account in Parent settings.';
+// Two plans after the free books (Alan, 2026-11-02: "annually or monthly 40% annual discount"). Same monthly allowance.
+// Price IDs are config; each must match its amount and interval exactly or checkout refuses.
+const PLANS={
+ monthly:{price:'STRIPE_PRICE_ID',cents:1950,interval:'month',terms:'Saybook renews at $19.50 every month until you cancel.'},
+ annual:{price:'STRIPE_ANNUAL_PRICE_ID',cents:14040,interval:'year',terms:'Saybook renews at $140.40 every year until you cancel.'},
+};
+const REFUND_TEXT='Charges are non-refundable except where the law requires. Cancel renewal any time from your Account page. Sold by HVAC Calc LLC.';
 const objectId = value => typeof value==='string'?value:value?.id;
 function stripeMode(env) {
  const live=env.STRIPE_MODE==='live';
@@ -17,40 +22,63 @@ export async function stripe(env,path,method='GET',params=null,idempotencyKey=nu
  if(params) headers['content-type']='application/x-www-form-urlencoded';
  if(idempotencyKey) headers['Idempotency-Key']=idempotencyKey;
  const res=await fetch(`${STRIPE_BASE}${path}`,{method,headers,body:params?new URLSearchParams(params):undefined,signal:AbortSignal.timeout(20000)});
- if(!res.ok) fail(502,'Stripe could not complete this request. Please try again.');
+ if(!res.ok) {
+  // Stripe's error type/code (never the key or body) so a failing call can be diagnosed from the Worker log.
+  const detail=await res.json().catch(()=>null);
+  console.warn('stripe',method,path.split('?')[0],res.status,detail?.error?.type||'',detail?.error?.code||'');
+  const e=new Error('Stripe could not complete this request. Please try again.');e.status=502;e.stripeStatus=res.status;throw e;
+ }
  return res.json();
 }
-function validPrice(price,env) {
- return price?.id===env.STRIPE_PRICE_ID && price.active!==false && price.currency==='usd' && price.unit_amount===1950 &&
- price.recurring?.interval==='month' && (price.recurring.interval_count??1)===1 && price.livemode===stripeMode(env);
+// 'monthly' | 'annual' when the price is exactly one of the configured plans in this Stripe mode, else null.
+function planOf(price,env) {
+ for(const [plan,p] of Object.entries(PLANS))
+  if(price?.id&&price.id===env[p.price]&&price.active!==false&&price.currency==='usd'&&price.unit_amount===p.cents&&
+   price.recurring?.interval===p.interval&&(price.recurring.interval_count??1)===1&&price.livemode===stripeMode(env)) return plan;
+ return null;
 }
 export async function billingRoute(req,env,a,path) {
  if(req.method!=='POST') fail(405,'Use POST');
  if(path==='/api/billing/checkout') {
   requireCountry(req,env);
   if(a.subscription_status==='active'&&a.subscription_end>now()) fail(409,'Use billing settings to manage your existing subscription');
-  if(!/^price_[A-Za-z0-9_]+$/.test(env.STRIPE_PRICE_ID||'')) fail(503,'Set the USD 19.50 monthly Stripe price before checkout');
-  const price=await stripe(env,`/prices/${env.STRIPE_PRICE_ID}`);
-  if(!validPrice(price,env)) fail(503,'Stripe price must be USD 19.50 per month, with the matching test/live mode');
+  const {plan}=await body(req);
+  if(!Object.hasOwn(PLANS,plan||'')) fail(400,'Choose monthly or annual');
+  const priceId=env[PLANS[plan].price];
+  if(!/^price_[A-Za-z0-9_]+$/.test(priceId||'')) fail(503,`Set the ${plan} Stripe price before checkout`);
+  if(planOf(await stripe(env,`/prices/${priceId}`),env)!==plan) fail(503,`The ${plan} Stripe price does not match its plan or Stripe mode`);
   let customer=a.stripe_customer_id;
   if(!customer) {
-   const created=await stripe(env,'/customers','POST',{'email':a.email,'metadata[account_id]':a.account_id,'invoice_settings[footer]':`Saybook parental consent: this subscription payment records your consent to the parent notice (${NOTICE_VERSION}). Review or withdraw consent at https://saybook.app/account/. HVAC Calc LLC.`},`storybook-customer-${a.account_id}`);
+   const created=await stripe(env,'/customers','POST',{'email':a.email,'metadata[account_id]':a.account_id},`storybook-customer-${a.account_id}`);
    customer=created.id;
    await env.DB.prepare('UPDATE hosted_accounts SET stripe_customer_id=? WHERE account_id=? AND status=\'active\'').bind(customer,a.account_id).run();
   }
-  if(!await reserveEnrollment(env,a.account_id))fail(409,'waitlist_only');
-  const origin=new URL(req.url).origin;
-  const checkout=await stripe(env,'/checkout/sessions','POST',{
-   mode:'subscription',customer,client_reference_id:a.account_id,
-   'line_items[0][price]':env.STRIPE_PRICE_ID,'line_items[0][quantity]':'1',
-   'subscription_data[metadata][account_id]':a.account_id,'metadata[account_id]':a.account_id,
-   'metadata[consent_version]':NOTICE_VERSION,'subscription_data[metadata][consent_version]':NOTICE_VERSION,
-   'custom_text[submit][message]':CONSENT_TEXT+' '+PAINTING_NOTICE,
-   'expires_at':String(Math.floor(now()/1000)+1800),
-   'subscription_data[description]':`Saybook parent subscription; parental consent notice ${NOTICE_VERSION}`,
-   success_url:`${origin}/account/?checkout=done`,cancel_url:`${origin}/account/`,
-   'allowed_payment_method_types[0]':'card',
-  },`storybook-checkout-${a.account_id}-${Math.floor(now()/1800000)}`);
+  const origin=new URL(req.url).origin,success_url=`${origin}/account/?checkout=done`;
+  // A parent who backs out and presses "Continue to payment" again gets the same open session for the same plan.
+  // Every other open session of this family's customer (other plan, other origin, nearly expired) is expired first,
+  // so only one Checkout can ever be paid.
+  let checkout=null;
+  const open=await stripe(env,`/checkout/sessions?customer=${encodeURIComponent(customer)}&status=open&limit=10&expand%5B%5D=data.line_items`);
+  for(const s of open.data||[]) {
+   const items=s.line_items?.data||[];
+   const same=s.metadata?.account_id===a.account_id&&objectId(s.customer)===customer&&s.mode==='subscription'&&
+    items.length===1&&items[0].price?.id===priceId&&s.success_url===success_url&&typeof s.url==='string'&&s.expires_at*1000>now()+600000;
+   if(same&&!checkout) checkout=s;
+   else await stripe(env,`/checkout/sessions/${encodeURIComponent(s.id)}/expire`,'POST',{});
+  }
+  if(!checkout) {
+   const params={
+    mode:'subscription',customer,client_reference_id:a.account_id,
+    'line_items[0][price]':priceId,'line_items[0][quantity]':'1',
+    'subscription_data[metadata][account_id]':a.account_id,'metadata[account_id]':a.account_id,
+    'custom_text[submit][message]':`${PLANS[plan].terms} ${REFUND_TEXT}`,
+    'expires_at':String(Math.floor(now()/1000)+1800),
+    success_url,cancel_url:`${origin}/account/`,
+    'allowed_payment_method_types[0]':'card',
+   };
+   // The key covers every parameter, so a replay is always the identical request (Stripe rejects a key reused with different ones).
+   checkout=await stripe(env,'/checkout/sessions','POST',params,`storybook-checkout-${a.account_id}-${await sha(JSON.stringify(params))}`);
+  }
   captureServer(env,'checkout_started',{}, {accountId:a.account_id,object:checkout.id});
   return json({url:checkout.url,mode:stripeMode(env)?'live':'test'});
  }
@@ -120,43 +148,45 @@ export async function webhook(req,env) {
  if(!fixture && (!a.stripe_customer_id||objectId(subscription.customer)!==a.stripe_customer_id)) fail(400,'Subscription customer mismatch');
  if(fixture && a.stripe_customer_id && a.stripe_customer_id!==objectId(subscription.customer)) fail(400,'Fixture customer mismatch');
  const item=subscription.items?.data?.[0];
- const price=item?.price;
- const correctPrice=validPrice(price,env)&&subscription.items.data.length===1&&(item.quantity??1)===1;
- const status=correctPrice?subscription.status:'invalid_price';
- const end=(subscription.current_period_end||item?.current_period_end||0)*1000;
+ const plan=subscription.items?.data?.length===1&&(item.quantity??1)===1?planOf(item.price,env):null;
+ const status=plan?subscription.status:'invalid_price';
+ // The Portal cancels by setting cancel_at (cancel_at_period_end stays false). Either one means the plan ends,
+ // and it ends at cancel_at when set. Removing cancel_at (resubscribe in the Portal) clears both.
+ const cancelAt=Number.isSafeInteger(subscription.cancel_at)&&subscription.cancel_at>0?subscription.cancel_at*1000:0;
+ const ending=!!subscription.cancel_at_period_end||cancelAt>0;
+ const end=cancelAt||(subscription.current_period_end||item?.current_period_end||0)*1000;
  const customer=objectId(subscription.customer);
  if(!customer||!/^cus_[A-Za-z0-9_]+$/.test(customer)||!Number.isFinite(end)) fail(400,'Invalid subscription');
- const paidConsent=event.type==='checkout.session.completed'&&object.mode==='subscription'&&object.status==='complete'&&object.payment_status==='paid'
-  &&object.amount_total>=1950&&object.currency==='usd'&&object.client_reference_id===accountId
-  &&object.metadata?.account_id===accountId&&object.metadata?.consent_version===a.consent_version
-  &&objectId(object.customer)===customer&&correctPrice&&a.consent_at>0
-  &&(!env.HOSTED_ALLOWED_COUNTRY||object.customer_details?.address?.country===env.HOSTED_ALLOWED_COUNTRY);
  const recorded=await env.DB.prepare('SELECT event_id FROM hosted_stripe_events WHERE account_id=? AND event_id=?').bind(accountId,event.id).first();
  if(recorded) return json({received:true,duplicate:true});
  // Atomic update + dedupe. Older events cannot resurrect access. A canceled subscription stays canceled at equal timestamps.
- const updates=[
+ await env.DB.batch([
   env.DB.prepare(`UPDATE hosted_accounts SET stripe_customer_id=?,stripe_subscription_id=?,subscription_status=?,subscription_end=?,
-   stripe_event_at=?,cancel_at_period_end=? WHERE account_id=? AND status='active' AND stripe_event_at<=?
+   stripe_event_at=?,cancel_at_period_end=?,billing_plan=? WHERE account_id=? AND status='active' AND stripe_event_at<=?
    AND NOT(stripe_event_at=? AND subscription_status='canceled' AND stripe_subscription_id=?)
    AND NOT EXISTS(SELECT 1 FROM hosted_stripe_events WHERE account_id=? AND event_id=?)`)
-   .bind(customer,subscription.id,status,end,event.created,subscription.cancel_at_period_end?1:0,accountId,event.created,event.created,subscription.id,accountId,event.id),
- ];
- if(paidConsent) {
-  updates.push(env.DB.prepare(`UPDATE hosted_accounts SET parent_verified_at=CASE WHEN parent_verified_at=0 THEN ? ELSE parent_verified_at END,consent_checkout_id=COALESCE(consent_checkout_id,?) WHERE account_id=? AND status='active'`).bind(now(),object.id,accountId));
-  updates.push(env.DB.prepare(`INSERT OR IGNORE INTO hosted_consent(account_id,id,version,action,at) VALUES(?,?,?,?,?)`).bind(accountId,event.id,a.consent_version,'paid_checkout_parental_consent',now()));
- }
- updates.push(...enrollmentUpdate(env,accountId));
- updates.push(env.DB.prepare('INSERT OR IGNORE INTO hosted_stripe_events(account_id,event_id,at,type) VALUES(?,?,?,?)').bind(accountId,event.id,now(),event.type));
- await env.DB.batch(updates);
- if(paidConsent) {
-  captureServer(env,'subscribed',{}, {accountId});
-  captureServer(env,'consent_given',{}, {accountId});
- }
- if(status==='canceled'||subscription.cancel_at_period_end)captureServer(env,'subscription_canceled',{}, {accountId,object:subscription.id});
+   .bind(customer,subscription.id,status,end,event.created,ending?1:0,plan||'',accountId,event.created,event.created,subscription.id,accountId,event.id),
+  env.DB.prepare('INSERT OR IGNORE INTO hosted_stripe_events(account_id,event_id,at,type) VALUES(?,?,?,?)').bind(accountId,event.id,now(),event.type),
+ ]);
+ if(event.type==='checkout.session.completed'&&status==='active')captureServer(env,'subscribed',{}, {accountId});
+ if(status==='canceled'||ending)captureServer(env,'subscription_canceled',{}, {accountId,object:subscription.id});
  return json({received:true,fixture});
 }
 export async function cancelForDeletion(req,env,a) {
  if(!a.stripe_subscription_id||['none','canceled','incomplete_expired'].includes(a.subscription_status)) return;
  if(a.stripe_subscription_id.startsWith('sub_fixture_')&&(req?testRequest(req,env):enabled(env.HOSTED_TEST_MODE))) return;
  await stripe(env,`/subscriptions/${encodeURIComponent(a.stripe_subscription_id)}`,'DELETE',null,`storybook-delete-${a.account_id}`);
+}
+// Account deletion removes the family's Stripe customer too (its email and saved card), never another account's.
+export async function deleteCustomerForDeletion(req,env,a) {
+ const id=a.stripe_customer_id;
+ if(!id) return;
+ if(id.startsWith('cus_fixture_')&&(req?testRequest(req,env):enabled(env.HOSTED_TEST_MODE))) return;
+ let customer;
+ try {customer=await stripe(env,`/customers/${encodeURIComponent(id)}`);}
+ catch(e) {if(e.stripeStatus===404) return; throw e;}
+ if(customer.deleted) return;
+ // Checkout created this customer with this account's id. Anything else is not ours to delete.
+ if(customer.metadata?.account_id!==a.account_id) {console.warn('stripe customer not deleted: account mismatch',id);return;}
+ await stripe(env,`/customers/${encodeURIComponent(id)}`,'DELETE');
 }

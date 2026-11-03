@@ -28,6 +28,11 @@ export async function charge(env, account_id, detail) {
   await env.DB.prepare('INSERT INTO usage_ledger (account_id,at,kind,usd,units,story_id) VALUES (?,?,?,?,?,?)')
     .bind(account_id, Date.now(), detail.kind, detail.usd || 0, typeof detail.units === "object" ? JSON.stringify(detail.units) : detail.units || 0, detail.story_id || null).run();
 }
+// Hosted: the five free books (src/hosted/books.js). A self-hosted copy has no limit.
+export async function bookGate(env, story_id = null, claim = false) {
+  if (env.MODE === 'hosted') return (await hosted()).bookGate(env, env.account_id, story_id, claim);
+  return { ok: true };
+}
 export async function finish(env) {
   if (env.MODE === 'hosted') await (await hosted()).finish(env);
 }

@@ -14,8 +14,8 @@
 //      paused, it is a page again (the picture beside the whole text, every word tappable).
 // Long pages (Alan's 1280×529: option B's prototype scrolled 16 of a 22-page book's pages): option A's rule for every skin.
 // One type size for the whole book, chosen so 3 pages in 4 fit whole; the longer pages step down (never below 75% of
-// it or a reading minimum); a page that still doesn't fit scrolls with the voice. B also trades up to 18% of the
-// picture's width (off the sides) or part of its height for type before a page may scroll.
+// it or a reading minimum); a page that still doesn't fit scrolls with the voice. B also makes the picture smaller
+// (never cropped: every picture shows whole in every skin, except Story theater's full screen) before a page may scroll.
 // Pages still being painted show the pencil placeholder; write.js polls the server (every 5 s while any page is
 // waiting) and calls refresh(), so pictures land on the page in front of the kid.
 //
@@ -24,7 +24,7 @@
 //   r.enter(), r.leave(), r.refresh(), r.setSkin('a'|'b'|'c'), r.stop(), r.unmount(), r.state (for e2e/ui.mjs)
 import { tokens, wordTimes, findWord } from './align.js';
 import { imgAttrs } from './pic.js';
-import { firstLine, costLine } from './write.js';
+import { firstLine, costLine, waitHTML } from './write.js';
 import { Recorder, micTrouble } from './recorder.js';
 
 export const SKINS = { b: 'Full-screen pages', a: 'Book spread', c: 'Story theater' };
@@ -108,9 +108,11 @@ export function mountRead(el, story, opts = {}) {
   function picHTML(p, alt) {
     if (p && p.image_url && !(waiting(p))) return `<img ${imgAttrs(p.image_url, (R.L && R.L.sizes) || '100vw')} alt="${esc(alt)}" decoding="async">`;
     if (p && p.status === 'error') return '<div class="sketch err"><span>This picture didn’t work. Try again in Write.</span></div>';
-    return `<div class="sketch painting"><span>${p && p.image_url ? 'Painting a new version…' : 'Painting the picture. It can take a few minutes.'}</span></div>`;
+    if (p && !p.image_url) return `<div class="sketch waiting">${waitHTML(story, p, w.since ? w.since(p.sid) : 0)}</div>`; // the same as Write's
+    return `<div class="sketch painting"><span>${p ? 'Painting a new version…' : 'Painting the picture…'}</span></div>`;
   }
-  const picSig = (p) => `${p && p.image_url}|${p && waiting(p)}|${p && p.status === 'error'}`;
+  // A waiting page is drawn again when a portrait lands or its status moves (portraits show as they are published).
+  const picSig = (p) => `${p && p.image_url}|${p && waiting(p)}|${p && p.status === 'error'}|${p && !p.image_url ? `${(story.cast || []).map((c) => c.name)}|${p.status}|${p.queued}` : ''}`;
   function setFigure(c, p, alt) {
     const sig = picSig(p);
     if (c.pic === sig) return;
@@ -118,7 +120,7 @@ export function mountRead(el, story, opts = {}) {
     c.pic = sig;
     const fig = c.el.querySelector('.rd-pic');
     fig.innerHTML = picHTML(p, alt);
-    const img = fig.querySelector('img');
+    const img = fig.querySelector(':scope > img'); // the picture itself, not the portraits on its placeholder
     if (img) {
       const ready = () => {
         img.classList.add('ready');
@@ -203,11 +205,10 @@ export function mountRead(el, story, opts = {}) {
 
   /* ---------------- fitting the words to the page (option A's rule) ---------------- */
   function fitPages(box) {
-    const key = `${R.skin}|${Math.round(box.cw)}x${Math.round(box.ch)}|${box.maxFs}|${box.minFs}|${box.cols || 1}|${R.fontKey}|${R.textKey}`;
+    const key = `${R.skin}|${Math.round(box.cw)}x${Math.round(box.ch)}|${box.maxFs}|${box.minFs}|${R.fontKey}|${R.textKey}`;
     const hit = R.memo.get(key);
     if (hit) return hit;
     measure.style.width = Math.round(box.cw) + 'px';
-    mflow.style.columnCount = box.cols > 1 ? String(box.cols) : '';
     const fits = new Map();
     for (const s of R.screens) {
       if (s.kind !== 'page') continue;
@@ -241,38 +242,39 @@ export function mountRead(el, story, opts = {}) {
 
   /* ---------------- layouts, one per skin ---------------- */
   const SK = {};
-  // B: side by side when the screen is wide, else the picture across the top. The picture gives up a little width
-  // (or height) before any page has to scroll.
+  // B: a landscape screen is a picture book: the picture page beside the words page. A portrait screen puts the
+  // picture across the top. The picture is always whole (2026-11-02: heads and feet were cut, and on a laptop the
+  // picture sat above the words): it gives up size, never parts of itself, before a page has to scroll.
+  // (Until 2026-11-02 the picture had to fill the screen's height, so a 3:2 picture fit beside the words only on
+  // screens wider than about 2:1; every laptop got a cropped strip across the top.)
   SK.b = {
     layout(W, H, ar) {
       const phone = W < 600, short = H < 640;
-      const minFs = phone ? 15.5 : 17, target = short ? 20 : phone ? 18.5 : 23;
-      const minText = clamp(340, W * 0.3, 560);
+      const minFs = phone ? 15.5 : 17, target = phone ? 18.5 : clamp(20, Math.min(W / 66, H / 40), 23);
       let best = null;
-      if (W / H >= 1.3 && W - H * ar * 0.82 >= minText) {
-        for (const f of [1, 0.94, 0.88, 0.82]) {
-          const pw = Math.round(Math.min(H * ar * f, W - minText)), tw = W - pw;
+      if (W / H >= 1.2) {
+        const m = Math.round(clamp(12, H * 0.028, 28)); // the page around the picture
+        for (const share of [0.34, 0.38, 0.42, 0.46, 0.5]) { // the words' share of the width, smallest first
+          const tw = Math.round(clamp(340, W * share, 760)), pw = W - tw, iw = Math.min(pw - 2 * m, (H - 2 * m) * ar);
           const padX = Math.round(clamp(22, tw * 0.07, 56)), padT = short ? 26 : 40, padB = short ? 40 : 52;
           const cw = Math.min(tw - padX * 2, 720), maxFs = clamp(19, cw / 21, 34);
-          const box = { mode: 'side', pw, ph: H, cw, ch: H - padT - padB, padX, padT, padB, maxFs, minFs, target: Math.min(maxFs, target), sizes: `${pw}px` };
+          const box = { mode: 'side', pw, ph: H, m, cw, ch: H - padT - padB, padX, padT, padB, maxFs, minFs, sizes: `${Math.round(iw)}px` };
           box.fit = fitPages(box);
           best = box;
-          if (box.fit.book >= target || pw === W - minText) break;
+          if (box.fit.book >= target) break;
         }
         return best;
       }
-      const cols = W >= 1000 && W / H > 1.2 ? 2 : 1; // a wide band (iPad landscape): the words in two columns
-      const full = W / ar;
-      for (const f of [1, 0.9, 0.8, 0.7, 0.62]) {
-        const ph = Math.round(Math.min(full, H * 0.7) * f);
+      const full = Math.min(W / ar, H * 0.62);
+      for (const f of [1, 0.9, 0.8, 0.7]) {
+        const ph = Math.round(full * f);
         const padX = Math.round(clamp(20, W * 0.055, 56)), padT = phone ? 18 : 26, padB = phone ? 44 : 50;
-        const cw = Math.min(W - padX * 2, cols > 1 ? 1180 : 760), col = cols > 1 ? (cw - 44) / 2 : cw;
-        const maxFs = clamp(18, col / 21, 32);
-        const box = { mode: 'band', cols, pw: W, ph, cw, ch: H - ph - padT - padB, padX, padT, padB, maxFs, minFs, target: Math.min(maxFs, cols > 1 ? 21 : target), sizes: '100vw' };
-        if (box.ch < 160) break;
+        const cw = Math.min(W - padX * 2, 760), maxFs = clamp(18, cw / 21, 32);
+        const box = { mode: 'band', pw: W, ph, m: 0, cw, ch: H - ph - padT - padB, padX, padT, padB, maxFs, minFs, sizes: `${Math.round(Math.min(W, ph * ar))}px` };
+        if (box.ch < 160 && best) break;
         box.fit = fitPages(box);
         best = box;
-        if (box.fit.book >= box.target) break;
+        if (box.fit.book >= Math.min(maxFs, target)) break;
       }
       return best;
     },
@@ -297,7 +299,7 @@ export function mountRead(el, story, opts = {}) {
         const ph = ah;
         if (pw / ph > 1.62) pw = ph * 1.62;
         const padX = Math.round(clamp(22, pw * 0.07, 60)), padT = Math.round(clamp(16, ph * 0.055, 48)), padB = Math.round(padT * 0.9) + 14;
-        const box = { mode: 'spread', bw: Math.floor(pw * 2), bh: Math.floor(ph), pw: Math.floor(pw), ph: Math.floor(ph), cw: pw - 2 * padX, ch: ph - padT - padB, padX, padT, padB, maxFs: clamp(19, pw / 22, 32), minFs: 17, sizes: `${Math.floor(pw)}px` };
+        const box = { mode: 'spread', bw: Math.floor(pw * 2), bh: Math.floor(ph), pw: Math.floor(pw), ph: Math.floor(ph), m: Math.round(clamp(12, ph * 0.03, 28)), cw: pw - 2 * padX, ch: ph - padT - padB, padX, padT, padB, maxFs: clamp(19, pw / 22, 32), minFs: 17, sizes: `${Math.floor(pw)}px` };
         box.fit = fitPages(box);
         return box;
       }
@@ -343,7 +345,7 @@ export function mountRead(el, story, opts = {}) {
       if (land) {
         const sheetW = Math.round(clamp(360, W * 0.44, 620));
         const padX = Math.round(clamp(20, sheetW * 0.06, 34)), padT = H < 640 ? 64 : 76, padB = H < 640 ? 74 : 86;
-        const box = { mode: 'side', sheetW, pw: W - sheetW, ph: H, cw: sheetW - 2 * padX, ch: H - padT - padB, padX, padT, padB, maxFs: H > 700 ? 25 : 22, minFs: 16, sub, sizes: '100vw' };
+        const box = { mode: 'side', sheetW, pw: W - sheetW, ph: H, m: Math.round(clamp(12, H * 0.028, 28)), cw: sheetW - 2 * padX, ch: H - padT - padB, padX, padT, padB, maxFs: H > 700 ? 25 : 22, minFs: 16, sub, sizes: '100vw' };
         box.fit = fitPages(box);
         return box;
       }
@@ -370,11 +372,14 @@ export function mountRead(el, story, opts = {}) {
     root.dataset.mode = L.mode;
     const set = (k, v) => root.style.setProperty(k, v);
     set('--pw', L.pw + 'px'); set('--ph', L.ph + 'px'); set('--padx', L.padX + 'px'); set('--padt', L.padT + 'px'); set('--padb', L.padB + 'px');
-    set('--cw', Math.round(L.cw) + 'px'); set('--cols', String(L.cols || 1));
+    set('--cw', Math.round(L.cw) + 'px');
     if (L.bw) { set('--bw', L.bw + 'px'); set('--bh', L.bh + 'px'); }
     if (L.sheetW) set('--sheet-w', L.sheetW + 'px');
     if (L.sub) set('--sub', L.sub + 'px');
-    root.dataset.crop = L.mode === 'side' && R.skin === 'b' ? (L.pw < H * R.ar - 4 ? 'x' : 'none') : L.mode === 'band' && R.skin === 'b' ? (L.ph < W / R.ar - 4 ? 'y' : 'none') : 'none';
+    // The picture's area is pw × ph with a margin of the page around it (--pm); the picture is drawn whole inside it.
+    // --iw × --ih: the picture's own size there, for the pencil placeholder while it paints.
+    const m = L.m || 0, iw = Math.max(0, Math.min(L.pw - 2 * m, (L.ph - 2 * m) * R.ar));
+    set('--pm', m + 'px'); set('--iw', Math.round(iw) + 'px'); set('--ih', Math.round(iw / R.ar) + 'px');
     for (const [key, c] of R.els) {
       applyFit(key, c);
       c.el.querySelectorAll('img[srcset]').forEach((img) => { if (!img.closest('.rd-lineup')) img.sizes = L.sizes; });
@@ -845,10 +850,16 @@ export function mountRead(el, story, opts = {}) {
     menu.hidden = false;
     voiceBtn.setAttribute('aria-expanded', 'true');
     const r = voiceBtn.getBoundingClientRect(), rr = root.getBoundingClientRect();
-    menu.style.top = Math.round(r.bottom - rr.top + 6) + 'px';
+    menu.style.top = drop(menu, r, rr, 6) + 'px';
     menu.style.left = Math.round(clamp(8, r.right - rr.left - menu.offsetWidth, rr.width - menu.offsetWidth - 8)) + 'px';
     poke(true);
     (menu.querySelector('[aria-checked="true"]') || menu.firstChild).focus({ preventScroll: true });
+  }
+  // Where a pop-up opens: under its button, or over it when the button sits at the foot of the screen (Book spread's
+  // faces and voice are at the bottom: the portrait opened off the screen, 2026-11-02); always on the screen.
+  function drop(el, r, rr, gap) {
+    const h = el.offsetHeight, below = r.bottom - rr.top + gap, above = r.top - rr.top - gap - h;
+    return Math.round(below + h <= rr.height - 8 || above < 8 ? Math.max(8, Math.min(below, rr.height - h - 8)) : above);
   }
   function closeMenu() { if (menu.hidden) return; menu.hidden = true; voiceBtn.setAttribute('aria-expanded', 'false'); shield(); }
   menu.addEventListener('click', (e) => {
@@ -882,7 +893,8 @@ export function mountRead(el, story, opts = {}) {
     castEl.querySelectorAll('.av img').forEach(faceCrop);
     chromeFor();
   }
-  // The portraits are whole figures on a plain ground: centre the circle on the head (from option B).
+  // The portraits are whole figures on a plain ground: centre the circle on the head of a standing figure (from
+  // option B), or fit the whole figure when it isn't one.
   function faceCrop(img) {
     const done = () => {
       const k = img.currentSrc || img.src, f = R.faces.get(k);
@@ -895,13 +907,19 @@ export function mountRead(el, story, opts = {}) {
         const d = cx.getImageData(0, 0, W, H).data, at = (x, y) => (y * W + x) * 4, bg = [0, 0, 0];
         for (const [x, y] of [[1, 1], [W - 2, 1], [1, H - 2], [W - 2, H - 2]]) for (let j = 0; j < 3; j++) bg[j] += d[at(x, y) + j] / 4;
         const fg = (x, y) => { const i = at(x, y); return Math.abs(d[i] - bg[0]) + Math.abs(d[i + 1] - bg[1]) + Math.abs(d[i + 2] - bg[2]) > 60; };
-        let top = -1, bottom = -1;
+        let top = -1, bottom = -1, left = W, right = -1;
         for (let y = 0; y < H; y++) { let n = 0; for (let x = 0; x < W; x++) n += fg(x, y); if (n >= 2) { if (top < 0) top = y; bottom = y; } }
         if (top < 0) throw new Error('no figure');
-        const headH = (bottom - top) * 0.17;
-        let sx = 0, n = 0;
-        for (let y = top; y <= top + headH; y++) for (let x = 0; x < W; x++) if (fg(x, y)) { sx += x; n++; }
-        const fx = (n ? sx / n : W / 2) / W, fy = (top + headH * 0.55) / H, size = Math.max(0.12, (headH * 1.5) / W);
+        for (let x = 0; x < W; x++) { let n = 0; for (let y = top; y <= bottom; y++) n += fg(x, y); if (n >= 2) { if (left === W) left = x; right = x; } }
+        let fx, fy, size;
+        if (bottom - top >= (right - left) * 1.15) { // a standing figure (a sack or a cape still counts): the circle on the head
+          const headH = (bottom - top) * 0.17;
+          let sx = 0, n = 0;
+          for (let y = top; y <= top + headH; y++) for (let x = 0; x < W; x++) if (fg(x, y)) { sx += x; n++; }
+          fx = (n ? sx / n : W / 2) / W; fy = (top + headH * 0.55) / H; size = Math.max(0.12, (headH * 1.5) / W);
+        } else { // a hamster, a whale, a dragon: no head on top to find, so the whole of them in the circle (2026-11-02)
+          fx = (left + right + 1) / 2 / W; fy = (top + bottom + 1) / 2 / H; size = Math.max(0.12, (Math.max(right - left, bottom - top) + 1) * 1.08 / W);
+        }
         const css = `position:absolute;max-width:none;height:auto;width:${100 / size}%;left:${(0.5 - fx / size) * 100}%;top:${(0.5 - (fy * (H / W)) / size) * 100}%`;
         R.faces.set(k, css);
         img.style.cssText = css;
@@ -923,7 +941,7 @@ export function mountRead(el, story, opts = {}) {
     pop.dataset.name = name;
     castEl.querySelectorAll('.av').forEach((b) => b.setAttribute('aria-expanded', String(b.dataset.name === name)));
     const r = btn.getBoundingClientRect(), rr = root.getBoundingClientRect();
-    pop.style.top = Math.round(r.bottom - rr.top + 8) + 'px';
+    pop.style.top = drop(pop, r, rr, 8) + 'px';
     pop.style.left = Math.round(clamp(8, r.left - rr.left + r.width / 2 - pop.offsetWidth / 2, rr.width - pop.offsetWidth - 8)) + 'px';
     poke(true);
   }
@@ -1132,7 +1150,7 @@ export function mountRead(el, story, opts = {}) {
       const s = shown();
       return {
         skin: R.skin, view: root.dataset.view, mode: R.mode, k: R.k, key: s && s.key, kind: s && s.kind, n: R.n, lit: R.lit, litKey: R.litKey,
-        chrome: root.dataset.chrome, layout: R.L && { mode: R.L.mode, pw: R.L.pw, ph: R.L.ph, cw: Math.round(R.L.cw), ch: Math.round(R.L.ch), cols: R.L.cols || 1, maxFs: R.L.maxFs },
+        chrome: root.dataset.chrome, layout: R.L && { mode: R.L.mode, pw: R.L.pw, ph: R.L.ph, cw: Math.round(R.L.cw), ch: Math.round(R.L.ch), maxFs: R.L.maxFs },
         book: R.fit && R.fit.book,
         pages: R.screens.filter((x) => x.kind === 'page').map((x) => ({ key: x.key, chars: x.m.text.length, fs: R.fit && R.fit.fs.get(x.key), fit: R.fit && R.fit.fits.get(x.key), scrolls: !!(R.fit && R.fit.scroll.has(x.key)) })),
       };

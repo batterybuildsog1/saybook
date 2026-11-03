@@ -1,4 +1,4 @@
-import {analyticsChoice,analyticsOffered,startAnalytics,stopAnalytics,capture} from '/analytics.js';
+import {analyticsChoice,analyticsOffered,startAnalytics,stopAnalytics,capture,insiderDevice} from '/analytics.js';
 const cfg=await fetch('/api/config').then(r=>r.json()).catch(()=>({}));
 // This module is referenced only by parent pages. Never import it in the studio/shared reader.
 if(analyticsOffered(cfg)) {
@@ -6,7 +6,7 @@ if(analyticsOffered(cfg)) {
  let accountHash='';
  if(location.pathname==='/account/') {
   const pref=await fetch('/api/account/analytics').then(r=>r.ok?r.json():null).catch(()=>null);
-  if(pref){analyticsChoice.set(pref.enabled);accountHash=pref.account_hash;}
+  if(pref){analyticsChoice.set(pref.enabled);accountHash=pref.account_hash;insiderDevice.set(pref.internal===true);}
  }
  if(host){
   host.hidden=false;

@@ -26,7 +26,7 @@ export async function shareRoute(req, env, id) {
   const story = await env.DB.prepare('SELECT id FROM stories WHERE account_id=? AND id=?').bind(env.account_id, id).first();
   if (!story) return Response.json({ error: 'not found' }, { status: 404 });
   const body = await req.json().catch(() => ({}));
-  // Recent parent authentication establishes identity. This separate, affirmative
+  // The signed-in account establishes identity. This separate, affirmative
   // choice grants disclosure permission for this book and the selected author setting.
   if (env.MODE === 'hosted' && (body.disclosure_consent !== true || body.notice_version !== SHARE_NOTICE_VERSION))
     return Response.json({ error: 'sharing_consent_required', notice_version: SHARE_NOTICE_VERSION }, { status: 403 });

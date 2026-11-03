@@ -1,8 +1,9 @@
 import { captureServer, accountHash } from "../analytics.js";
 import { now, id, json, body, fail, safeAccount, mediaPrefix, NOTICE_VERSION, testRequest } from './util.js';
 import { usage, allow, charge, finish } from './usage.js';
-import { cancelForDeletion } from './billing.js';
-const TABLES=['analytics_preferences','analytics_milestones','shares','stories','scenes','events','settings','usage_ledger','hosted_profiles','hosted_consent','hosted_usage'];
+import { cancelForDeletion, deleteCustomerForDeletion } from './billing.js';
+import { books } from './books.js';
+const TABLES=['analytics_preferences','analytics_milestones','shares','stories','scenes','events','settings','usage_ledger','hosted_profiles','hosted_consent','hosted_usage','hosted_books'];
 const b64=bytes=>{let s='';for(const b of bytes)s+=String.fromCharCode(b);return btoa(s);};
 export function dataExport(env,a) {
  const stream=new ReadableStream({
@@ -45,6 +46,8 @@ export async function purgeAccount(req,env,a) {
  await env.DB.prepare("UPDATE hosted_accounts SET status='deleting' WHERE account_id=?").bind(a.account_id).run();
  await cancelForDeletion(req,env,a);
  await env.DB.prepare("UPDATE hosted_accounts SET subscription_status='canceled',subscription_end=0 WHERE account_id=?").bind(a.account_id).run();
+ // After the subscription is recorded canceled, so a retry after a failed customer deletion doesn't cancel twice.
+ await deleteCustomerForDeletion(req,env,a);
  const inflight=await env.DB.prepare('SELECT COUNT(*) n FROM hosted_reservations WHERE account_id=? AND expires>?').bind(a.account_id,now()).first();
  if(inflight.n) return json({error:'deletion_waiting_for_inflight_work',message:'The account is locked. Please retry deletion after the current picture or recording finishes.'},409);
  for(let cursor;;) {
@@ -52,7 +55,7 @@ export async function purgeAccount(req,env,a) {
   if(page.objects.length)await env.MEDIA.delete(page.objects.map(x=>x.key));
   if(!page.truncated)break;cursor=page.cursor;
  }
- const tables=[...TABLES,'hosted_enrollment','hosted_sessions','hosted_reservations','hosted_stripe_events','hosted_auth_limits','hosted_accounts'];
+ const tables=[...TABLES,'hosted_sessions','hosted_reservations','hosted_stripe_events','hosted_auth_limits','hosted_accounts'];
  await env.DB.batch(tables.map(table=>env.DB.prepare(`DELETE FROM ${table} WHERE account_id=?`).bind(a.account_id)));
  return new Response(null,{status:204,headers:{'cache-control':'no-store','set-cookie':'__Host-storybook=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Strict'}});
 }
@@ -64,9 +67,9 @@ export async function accountRoute(req,env,a,url) {
    await env.DB.prepare('INSERT INTO analytics_preferences(account_id,enabled,at) VALUES(?,?,?) ON CONFLICT(account_id) DO UPDATE SET enabled=excluded.enabled,at=excluded.at').bind(a.account_id,b.enabled?1:0,now()).run();
   } else if(m!=='GET')fail(405,'Use GET or PUT');
   const pref=await env.DB.prepare('SELECT enabled FROM analytics_preferences WHERE account_id=?').bind(a.account_id).first();
-  return json({enabled:!!pref?.enabled,account_hash:await accountHash(a.account_id)});
+  return json({enabled:!!pref?.enabled,account_hash:await accountHash(a.account_id),internal:!!a.internal});
  }
- if(path==='/api/account' && m==='GET')return json({account:safeAccount(a),usage:await usage(env,a.account_id)});
+ if(path==='/api/account' && m==='GET')return json({account:safeAccount(a),usage:await usage(env,a.account_id),books:await books(env,a.account_id)});
  if(path==='/api/account'&&m==='DELETE')return deleteAccount(req,env,a);
  if(path==='/api/account/export'&&m==='POST')return dataExport(env,a);
  if(path==='/api/account'&&(m==='PUT'||m==='PATCH')) {
@@ -113,13 +116,6 @@ export async function accountRoute(req,env,a,url) {
    await charge(testEnv,a.account_id,{kind,usd,units:{fixture:true,...b.units},story_id:b.story_id||null});
    return json({ok:true,fixture:true,usage:await usage(testEnv,a.account_id)});
    }finally{await finish(testEnv);}
-  }
-  if(path==='/api/account/test/waitlist'&&m==='DELETE'){
-   const b=await body(req),email=String(b.email||'').toLowerCase();
-   if(!email.endsWith('@example.invalid'))fail(400,'Synthetic waitlist email required');
-   const {sha}=await import('./util.js');const key=await sha(`waitlist:${email}`);
-   const row=await env.DB.prepare('SELECT email FROM hosted_waitlist WHERE account_id=?').bind(key).first();
-   await env.DB.prepare('DELETE FROM hosted_waitlist WHERE account_id=?').bind(key).run();return json({deleted:!!row});
   }
   if(path==='/api/account/test/retention'&&m==='POST') {
    const b=await body(req),days=Number(b.days);

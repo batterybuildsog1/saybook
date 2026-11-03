@@ -31,6 +31,36 @@ const parasOf = (t) => String(t || '').split(SEP);
 const wc = (t) => tokens(t).length;
 // For grown-ups on a self-hosted copy: what reading this book aloud has cost (the provider's billed price; hidden in hosted).
 export const costLine = (usd) => `Reading this book aloud cost ${usd < 0.01 ? 'less than 1¢' : usd < 1 ? `${Math.round(usd * 100)}¢` : `$${usd.toFixed(2)}`}`;
+// The placeholder while the server paints a page's first picture (CONTRACT.md): every missing portrait first (about
+// 40 s), then the page (about 50 s), then the art director's check (about 20 s). It shows what is really done (each
+// character on the page, whole, the moment their portrait is published), says what is happening and how long it
+// usually takes, and fills a quiet line over that time. It was a blank hatch for about 2 minutes (2026-11-03).
+// `since`: when this tab first saw the page waiting (the server keeps no start time).
+export function waitHTML(story, p, since) {
+  const have = new Map((story.cast || []).map((c) => [c.name, c.url]));
+  const all = ((story.bible && story.bible.characters) || []).map((c) => c.name);
+  const who = (p.present || []).filter((n) => all.includes(n) || have.has(n)).slice(0, 4);
+  const drawing = all.some((n) => !have.has(n)); // the server draws every missing portrait before any page
+  const done = who.filter((n) => have.has(n)).length, usual = drawing ? 120 : 70, t0 = since || Date.now(), t = waitTimes(t0, usual);
+  const faces = who.map((n) => (have.has(n) ? `<img ${imgAttrs(have.get(n), '120px', { src: 480, widths: [480] })} alt="${esc(n)}" title="${esc(n)}">` : `<i title="${esc(n)} (being drawn)"></i>`)).join('');
+  const what = drawing ? `Drawing the characters<b class="wait-long"> first</b>${who.length ? `: ${done} of ${who.length}` : ''}` : p.queued ? 'Next in line to be painted' : 'Painting the picture';
+  return `<div class="wait" data-since="${t0}" data-usual="${usual}">${faces ? `<div class="wait-who">${faces}</div>` : ''}`
+    + `<div class="wait-txt"><p class="wait-what">${what}</p><p class="wait-eta">${t.line}</p></div><i class="wait-bar" aria-hidden="true" style="--p:${t.p}"></i></div>`;
+}
+const waitTimes = (since, usual) => {
+  const secs = Math.max(0, (Date.now() - since) / 1000);
+  return { line: secs > usual + 60 ? 'Taking longer than usual' : usual > 100 ? 'Usually about 2 minutes' : 'Usually about a minute', p: Math.min(0.92, secs / usual).toFixed(3) };
+};
+// Moves every picture placeholder on the screen along (Write's and Read's): the line fills toward 92% over the usual
+// time ("usually": it never claims to be done before it is) and the words change once it runs long. Called on each
+// look at the server (every 5 s while anything paints), not by CSS timers: reduced motion collapses those.
+export function tickWaits(root = document) {
+  for (const w of root.querySelectorAll('.wait[data-since]')) {
+    const t = waitTimes(+w.dataset.since, +w.dataset.usual), e = w.querySelector('.wait-eta'), b = w.querySelector('.wait-bar');
+    if (e && e.textContent !== t.line) e.textContent = t.line;
+    if (b) b.style.setProperty('--p', t.p);
+  }
+}
 export const firstLine = (t) => { const l = String(t || '').trim().split('\n')[0].trim(); return l.length <= 70 ? l : ''; }; // the kid's own words, as a title stand-in
 const paraOffset = (t, k) => { const p = parasOf(t); let o = 0; for (let i = 0; i < k && i < p.length; i++) o += p[i].length + 2; return Math.min(o, t.length); };
 const LABEL = { starting: 'Opening the microphone…', recording: 'Listening. Tap to stop', transcribing: 'Writing it down…', typing: 'Talk instead' };
@@ -56,7 +86,7 @@ export function mount(el, story, opts = {}) {
     text: canon(story.text), state: 'idle', rec: null, typed: false, dead: false, pending: Promise.resolve(),
     idleT: 0, retryT: 0, booking: null, again: null, chunked: false, quiet: 0, since: {}, painting: new Set(), fresh: new Set(), pageEls: new Map(),
     knownCast: new Set((story.cast || []).map((c) => c.name)), h: null, single: null, playTok: 0, reading: false, poll: 0,
-    pasted: 0, userScroll: 0, lit: -1, spans: [], opened: Date.now(),
+    pasted: 0, userScroll: 0, lit: -1, spans: [], opened: Date.now(), t0: {},
   };
   story.scenes = story.scenes || [];
   story.book = story.book || { chapters: [], settled_paragraphs: 0 };
@@ -86,7 +116,7 @@ export function mount(el, story, opts = {}) {
       </section>
       <aside class="ws-side">
         <div class="side-card">
-          <button class="btn primary read-book" type="button"><svg class="ico"><use href="#i-play"/></svg><span>Read my book</span></button>
+          <button class="btn primary read-book" type="button"><svg class="ico"><use href="#i-book"/></svg><span>Finish my book</span></button>
           <label class="voice-pick">Read by <select class="voice" aria-label="Who reads it"></select></label>
         </div>
         <button class="btn fix-punct" type="button"><svg><use href="#i-pencil"/></svg><span>Fix my punctuation</span></button>
@@ -179,8 +209,8 @@ export function mount(el, story, opts = {}) {
     if (p.status === 'error' && !busy) {
       return '<div class="sketch err"><span>The picture didn\'t work.</span><button class="btn small primary bk-retry" type="button"><svg><use href="#i-redo"/></svg>Try again</button></div>';
     }
-    const what = busy ? (p.image_url ? 'Painting a new version…' : 'Painting…') : castMissing() ? 'Sketching the characters first…' : 'Sketching…';
-    return `<div class="sketch${busy ? ' painting' : ''}"><i class="pencil" aria-hidden="true"></i><span>${what}</span></div>`;
+    if (!p.image_url) return `<div class="sketch waiting">${waitHTML(story, p, (W.t0[p.sid] ||= Date.now()))}</div>`;
+    return '<div class="sketch painting"><i class="pencil" aria-hidden="true"></i><span>Painting a new version…</span></div>';
   }
   function pageEl(p) {
     const a = document.createElement('article');
@@ -279,10 +309,13 @@ export function mount(el, story, opts = {}) {
     const pages = story.scenes.length, waits = story.scenes.filter(waiting);
     const n = new Set([...W.painting, ...waits.map((p) => p.sid)]).size;
     const forming = W.booking ? `Turning your story into a book…${W.chunked && pages ? ` page ${pages}` : ''}` : '';
-    status.textContent = forming || (waits.length && castMissing() ? 'Sketching the characters…' : n ? `Painting ${n} picture${n === 1 ? '' : 's'}. Keep writing; they’ll appear on their own.` : '');
+    const all = ((story.bible && story.bible.characters) || []).map((c) => c.name), have = new Set((story.cast || []).map((c) => c.name));
+    status.textContent = forming || (waits.length && castMissing() ? `Drawing the characters: ${all.filter((x) => have.has(x)).length} of ${all.length}…` : n ? `Painting ${n} picture${n === 1 ? '' : 's'}. Keep writing; they’ll appear on their own.` : '');
+    if (!forming && finished()) status.textContent = `Your book is ready: ${pages} page${pages === 1 ? '' : 's'}.${status.textContent ? ` ${status.textContent}` : ''}`;
     status.classList.toggle('busy', !!forming);
     draftEl.classList.toggle('forming', !!W.booking);
     draftLabel.textContent = forming || 'Still writing';
+    renderReadBtn();
   }
   const page = (sid) => story.scenes.find((p) => p.sid === sid);
   const sorted = () => [...story.scenes].sort((x, y) => x.ord - y.ord);
@@ -349,7 +382,7 @@ export function mount(el, story, opts = {}) {
         if (W.text !== t) continue; // they changed something while it saved: look again
         let d;
         try { d = await o.api('POST', `/api/stories/${story.id}/book`, { text: t, settled_upto: upto }); }
-        catch (e) { if (e.status !== 401) W.retryT = setTimeout(() => settle(mode), e.status === 409 ? 3000 : 8000); return; }
+        catch (e) { if (e.status !== 401 && e.status !== 402) W.retryT = setTimeout(() => settle(mode), e.status === 409 ? 3000 : 8000); return; } // a 402 is never retried
         applyBook(d, t, upto);
         if (upto === goal || mode === 'book' || !(d && d.applied) || settledN() <= n) return; // done, or no headway
       }
@@ -434,11 +467,12 @@ export function mount(el, story, opts = {}) {
   function stopWatching() { clearInterval(W.poll); W.poll = 0; }
   async function lookAgain() {
     if (W.dead) { stopWatching(); return; }
+    tickWaits();
     const fresh = await o.api('GET', `/api/stories/${story.id}`).catch(() => null);
     if (!fresh || W.dead) return;
     let changed = false, sheetPage = false;
-    const hadCast = castMissing();
-    if (JSON.stringify(fresh.cast || []) !== JSON.stringify(story.cast || [])) { story.cast = fresh.cast || []; renderCast(); changed = true; }
+    const castChanged = JSON.stringify(fresh.cast || []) !== JSON.stringify(story.cast || []);
+    if (castChanged) { story.cast = fresh.cast || []; renderCast(); changed = true; }
     for (const f of fresh.scenes || []) {
       const p = page(f.sid);
       if (!p || W.painting.has(p.sid)) continue; // the kid's own redraw is in flight here
@@ -450,7 +484,7 @@ export function mount(el, story, opts = {}) {
       renderFigure(p.sid);
       changed = true;
     }
-    if (hadCast && !castMissing()) story.scenes.filter(waiting).forEach((p) => renderFigure(p.sid)); // "Sketching the characters first…" → "Sketching…"
+    if (castChanged) story.scenes.filter((p) => !p.image_url).forEach((p) => renderFigure(p.sid)); // each portrait shows on its pages' placeholders as it lands
     // A page still "pending" (not queued, not painting) after 2 minutes isn't in the server's queue (a story laid out
     // before the queue existed): offer "Try again", which asks the server (202) to queue it.
     const now = Date.now();
@@ -519,12 +553,19 @@ export function mount(el, story, opts = {}) {
   }
   const wordsOf = (p) => { const a = W.pageEls.get(p.sid); return a ? [...a.querySelectorAll('.bk-text .w')].map((x) => x.textContent) : tokens(p.text); };
 
-  function setReadBtn(mode) { // idle · making (the book is still forming) · on
-    readBtn.classList.toggle('on', mode === 'on');
-    readBtn.classList.toggle('making', mode === 'making');
-    readBtn.querySelector('span').textContent = mode === 'making' ? 'Your book is still being made…' : mode === 'on' ? 'Stop reading' : 'Read my book';
-    readBtn.querySelector('use').setAttribute('href', mode === 'on' ? '#i-pause' : '#i-play');
-    readBtn.setAttribute('aria-label', mode === 'idle' ? 'Read my book' : 'Stop reading');
+  // "Finish my book" while some of the writing isn't pages yet, "Open my book" once it all is. Either way the tap lays
+  // out what's left and opens the book in Read mode, silent: reading aloud is asked for there ("Read to me") or on a
+  // page here. (2026-11-03: "Read my book" laid the book out and started the voice in one tap, and nothing ever said
+  // the story was finished.)
+  function finished() { return !W.booking && !W.rec && W.state === 'idle' && !draftOf().trim() && story.scenes.length > 0; }
+  function renderReadBtn() {
+    const t = finished() ? 'Open my book' : 'Finish my book';
+    if (readBtn.querySelector('span').textContent !== t) readBtn.querySelector('span').textContent = t;
+  }
+  function openBook() {
+    if (!W.text.trim() && !W.rec && W.state !== 'typing') { o.toast('Tell a few sentences first, then your book can be made.'); return; }
+    stopPlay();
+    if (o.onRead) o.onRead(); // app.js: setStep('read'), which finishes typing; read.js lays out the rest as it opens
   }
   function chapterBtnState(b, on) {
     b.classList.toggle('on', on);
@@ -538,7 +579,6 @@ export function mount(el, story, opts = {}) {
     bk.querySelectorAll('.w.lit, .w.now').forEach((x) => x.classList.remove('lit', 'now'));
     bk.querySelectorAll('.bk-ch-read.on').forEach((b) => chapterBtnState(b, false));
     W.single = null; W.reading = false; W.chapterBtn = null; W.spans = []; W.lit = -1;
-    setReadBtn('idle');
   }
   // The page being read: its play button becomes a stop button; the sheet brings it into view.
   function onPage(p, s) {
@@ -594,20 +634,19 @@ export function mount(el, story, opts = {}) {
       onError: (e) => readError(e, p, () => togglePage(sid)) });
     W.h.done.then(() => { if (tok === W.playTok) stopPlay(); });
   }
-  // The whole book (or one chapter) from `from`, page after page. Pages that are still forming are waited for.
+  // One chapter ("Read this chapter") from `from`, page after page; the whole book is read in Read mode.
   async function readBook({ from = null, chapter = false, btn = null } = {}) {
     const wasChapter = W.chapterBtn;
-    if (W.reading) { stopPlay(); if (!btn || wasChapter === from) return; }
+    if (W.reading) { stopPlay(); if (!btn || wasChapter === btn.dataset.sid) return; }
     if (!reader) return;
     prime();
     stopPlay();
     const tok = W.playTok;
     W.reading = true;
-    if (btn) { W.chapterBtn = from; chapterBtnState(btn, true); }
+    if (btn) { W.chapterBtn = btn.dataset.sid; chapterBtnState(btn, true); }
     if (W.state === 'typing') finishTyping();
     if (draftWaiting()) settle('all'); // the rest joins the book while the first pages are read
     const first = (from && page(from)) || sorted()[0] || firstPage(); // a Promise while the first page is still forming
-    setReadBtn(first.then ? 'making' : 'on');
     const chs = (story.book.chapters || []).map((c) => c.start).sort((a, b) => a - b);
     const end = chapter && first.from !== undefined ? (chs.find((c) => c > first.from) ?? Infinity) : Infinity;
     const inRange = (n) => (n && n.from < end ? n : null);
@@ -617,7 +656,6 @@ export function mount(el, story, opts = {}) {
       onPage: (p, s) => { started = true; onPage(p, s); },
       peek: (p) => inRange(after(p)),
       next: async (p) => (p.to + 1 >= end ? null : inRange(await nextPage(p))),
-      onWait: (on) => { if (tok === W.playTok) setReadBtn(on ? 'making' : 'on'); },
       onError: (e, p) => readError(e, p, () => readBook({ from: p.sid, chapter })),
     });
     await W.h.done;
@@ -625,12 +663,16 @@ export function mount(el, story, opts = {}) {
     stopPlay();
     if (!started && !sorted().length) o.toast('Tell a few sentences first, then your book can be read.');
   }
-  readBtn.onclick = () => readBook();
+  readBtn.onclick = openBook;
   function renderVoices() {
     const vs = o.voices() || [], cur = o.voice();
     voiceSel.innerHTML = vs.map((v) => `<option value="${esc(v.id)}"${v.id === cur ? ' selected' : ''}>${esc(v.name)}</option>`).join('');
   }
-  voiceSel.onchange = () => { const was = W.reading && W.h && W.h.page; stopPlay(); o.setVoice(voiceSel.value); if (was) readBook({ from: was.sid }); };
+  voiceSel.onchange = () => {
+    const was = W.reading && W.h && W.h.page, b = W.chapterBtn && bk.querySelector(`.bk-ch-read[data-sid="${W.chapterBtn}"]`);
+    stopPlay(); o.setVoice(voiceSel.value);
+    if (was && b) readBook({ from: was.sid, chapter: true, btn: b }); // the chapter goes on in the new voice
+  };
 
   /* ---------------- talking ---------------- */
   async function startRec() {
@@ -1052,7 +1094,7 @@ export function mount(el, story, opts = {}) {
   titleEl.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); titleEl.blur(); } });
   titleEl.addEventListener('blur', () => { if (!titleEl.textContent.trim()) titleEl.textContent = ''; });
   press.addEventListener('click', () => { if (W.state === 'recording') stopRec(); else if (W.state === 'idle' || W.state === 'typing') startRec(); });
-  typeBtn.addEventListener('click', () => { if (W.state === 'typing') finishTyping(); else startTyping(); });
+  typeBtn.addEventListener('click', () => { if (W.state === 'typing') { finishTyping(); settle('all'); } else startTyping(); }); // "Done typing": it becomes pages now
   document.addEventListener('keydown', onKey);
   function onKey(e) { if (e.key === 'Escape' && !modal.hidden) closeModal(); }
 
@@ -1081,6 +1123,7 @@ export function mount(el, story, opts = {}) {
     refreshVoices: renderVoices,
     refreshCost: renderCost,
     pages: sorted, after, nextPage, firstPage, forming,
+    since: (sid) => W.t0[sid] || 0, // when this tab first saw that page waiting for its picture (read.js's placeholder)
     stopReading: () => stopPlay(),
     stop() { stopPlay(); finishTyping(); if (W.rec || W.state === 'starting') return stopRec(); return W.pending; },
     unmount() {

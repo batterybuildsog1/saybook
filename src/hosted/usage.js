@@ -54,7 +54,7 @@ export async function allow(env,accountId,kind) {
  const charReserve=name==='tts'?number(env,'HOSTED_RESERVE_TTS_CHARACTERS',12000,1):0;
  const reservation=id();
  const dimensions=[['usd_micros',reserve,c.allowance,c.daily],['images',imageReserve,c.images,c.dailyImages],['tokens',tokenReserve,c.tokens,c.dailyTokens],['characters',charReserve,c.characters,c.dailyCharacters]];
- const clauses=[],bindings=[accountId,reservation,name,reserve,imageReserve,tokenReserve,charReserve,at,at+30*60000,accountId,at];
+ const clauses=[],bindings=[accountId,reservation,name,reserve,imageReserve,tokenReserve,charReserve,at,at+30*60000,accountId];
  for(const [column,reserved,monthly,daily] of dimensions) {
   clauses.push(`(SELECT COALESCE(SUM(${column}),0) FROM hosted_usage WHERE account_id=? AND at>=?)
    +(SELECT COALESCE(SUM(${column}),0) FROM hosted_reservations WHERE account_id=? AND expires>?) + ? <= ?`);
@@ -67,7 +67,7 @@ export async function allow(env,accountId,kind) {
  // One conditional write is the admission decision; competing D1 writes see each other's holds.
  const result=await env.DB.prepare(`INSERT INTO hosted_reservations(account_id,id,kind,usd_micros,images,tokens,characters,at,expires)
  SELECT ?,?,?,?,?,?,?,?,? WHERE EXISTS(SELECT 1 FROM hosted_accounts WHERE account_id=? AND status='active'
- AND consent_at>0 AND parent_verified_at>0 AND subscription_status='active' AND subscription_end>?)
+ AND consent_at>0 AND parent_verified_at>0)
  AND ${clauses.join(' AND ')}
  AND (SELECT COUNT(*) FROM hosted_reservations WHERE account_id=? AND at>?) < ?
  AND (SELECT COUNT(*) FROM hosted_reservations WHERE account_id=? AND expires>?) < ?`).bind(...bindings).run();
@@ -77,11 +77,10 @@ export async function allow(env,accountId,kind) {
   const t=await totals(env,accountId);
   return {ok:true,reservation_id:reservation,warning:Math.max(t.used/c.allowance,t.images/c.images,t.tokens/c.tokens,t.characters/c.characters)>=0.8};
  }
- const a=await env.DB.prepare('SELECT status,consent_at,parent_verified_at,subscription_status,subscription_end FROM hosted_accounts WHERE account_id=?').bind(accountId).first();
+ const a=await env.DB.prepare('SELECT status,consent_at,parent_verified_at FROM hosted_accounts WHERE account_id=?').bind(accountId).first();
  let reason='allowance';
  if(!a||a.status!=='active')reason='account_unavailable';
  else if(!a.consent_at||!a.parent_verified_at)reason='parental_consent_required';
- else if(a.subscription_status!=='active'||a.subscription_end<=at)reason='billing';
  else {
   const t=await totals(env,accountId);
   if(t.daily+t.daily_reserved+reserve>c.daily||t.daily_images+t.daily_reserved_images+imageReserve>c.dailyImages||t.daily_tokens+t.daily_reserved_tokens+tokenReserve>c.dailyTokens||t.daily_characters+t.daily_reserved_characters+charReserve>c.dailyCharacters)reason='breaker';

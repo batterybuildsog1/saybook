@@ -19,14 +19,14 @@ ANALYTICS_DEPLOYMENT = "test"
 # CONTACT_TO = "owner@example.com"
 MODE = "hosted"
 HOSTED_ALLOWED_COUNTRY = "US"
-HOSTED_MAX_ACCOUNTS = "10"
 HOSTED_OPEN = "true"
 HOSTED_PAUSE = "false"
 HOSTED_TTS_PAUSE = "false"
 # Set true only if your provider charges a flat subscription fee, then explicitly configure USD tariffs.
 PROVIDER_FLAT_RATE = "false"
 STRIPE_MODE = "test"
-STRIPE_PRICE_ID = "REPLACE_WITH_TEST_MONTHLY_PRICE_ID"
+STRIPE_PRICE_ID = "REPLACE_WITH_TEST_MONTHLY_PRICE_ID"   # USD 19.50 / month
+STRIPE_ANNUAL_PRICE_ID = "REPLACE_WITH_TEST_ANNUAL_PRICE_ID"   # USD 140.40 / year (40% off)
 TEXT_BASE_URL = "https://api.openai.com/v1"
 TEXT_MODEL = "gpt-4.1-mini"
 VISION_MODEL = "gpt-4.1-mini"

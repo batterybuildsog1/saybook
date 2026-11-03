@@ -27,11 +27,11 @@ export function analyticsConfig({mode='self',key='',analyticsConsent=false,surfa
    const source=event.properties||{};
    if(event.event==='$snapshot') {
     // Recorder metadata must not inherit referrers, initial URLs, or automatic person properties.
-    const props={$geoip_disable:true,$ip:'0.0.0.0',deployment:deployment==='production'?'production':'test',source:'client'};
+    const props={$geoip_disable:true,$ip:'0.0.0.0',deployment:deployment==='production'?'production':'test',source:'client',...(source.internal===true?{internal:true}:{})};
     for(const k of ['token','distinct_id','$session_id','$window_id','$lib','$lib_version','$snapshot_bytes','$snapshot_data'])if(source[k]!==undefined)props[k]=source[k];
     return {...event,properties:props,$set:undefined,$set_once:undefined,$unset:undefined};
    }
-   const props={...safeProperties(source),app_mode:mode,surface:'parent',source:'client',deployment:deployment==='production'?'production':'test',$geoip_disable:true,$ip:'0.0.0.0'};
+   const props={...safeProperties(source),app_mode:mode,surface:'parent',source:'client',deployment:deployment==='production'?'production':'test',$geoip_disable:true,$ip:'0.0.0.0',...(source.internal===true?{internal:true}:{})};
    for(const k of ['token','distinct_id','$session_id','$window_id','$insert_id','$lib','$lib_version'])if(typeof source[k]==='string')props[k]=source[k];
    return {...event,properties:props,$set:undefined,$set_once:undefined,$unset:undefined};
   },

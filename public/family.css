@@ -1,5 +1,5 @@
 /* family.css: the pieces the open-source and hosted app adds to the desk: "Who's writing?" (first run), writers'
-   colours on the shelf, sharing a book, the printing press resting, the grown-up gate and the passcode's Open key.
+   colours on the shelf, sharing a book, the printing press resting and the passcode's Open key.
    Theme tokens only (CONTRACT tokens), so all three themes carry them. */
 
 /* ---------- passcode: the spare key opens when the passcode length isn't known ---------- */
@@ -33,8 +33,6 @@
   clip-path: polygon(18px 0, 100% 0, 100% 100%, 18px 100%, 0 50%);
 }
 .wf-writer::before { content: ""; position: absolute; left: 17px; top: 50%; width: 11px; height: 11px; margin-top: -5.5px; border-radius: 50%; background: var(--tag); }
-.wf-rm { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-size: 16px; color: var(--ink-soft); }
-.wf-rm:hover { background: color-mix(in srgb, var(--ink) 10%, transparent); color: var(--ink); }
 .wf-form { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 14px; border-radius: var(--radius); background: var(--surface-2); }
 .wf-form input {
   flex: 1 1 200px; min-width: 0; height: 52px; padding: 0 16px; border: 0; border-radius: calc(var(--radius) - 2px);
@@ -83,19 +81,19 @@
 }
 
 /* ---------- share sheet ---------- */
-dialog.share, dialog.gate { padding: 0; border: 0; background: none; color: var(--ink); max-width: calc(100vw - 24px); }
-dialog.share::backdrop, dialog.gate::backdrop { background: color-mix(in srgb, var(--ink) 40%, transparent); }
-.share-card, .gate-form {
+dialog.share { padding: 0; border: 0; background: none; color: var(--ink); max-width: calc(100vw - 24px); }
+dialog.share::backdrop { background: color-mix(in srgb, var(--ink) 40%, transparent); }
+.share-card {
   position: relative; width: min(480px, calc(100vw - 24px)); padding: 30px 30px 26px; border-radius: var(--radius-lg);
   background: var(--surface); box-shadow: var(--shadow-lg); font-family: var(--font-body);
   display: flex; flex-direction: column; gap: 14px;
 }
 .share-card .x { position: absolute; right: 12px; top: 12px; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; }
 .share-card .x:hover { background: var(--surface-2); }
-.share-h, .gate-h { margin: 0; padding-right: 40px; font-family: var(--font-display); font-weight: 400; font-size: 32px; line-height: 1.05; }
+.share-h { margin: 0; padding-right: 40px; font-family: var(--font-display); font-weight: 400; font-size: 32px; line-height: 1.05; }
 .share-title { margin: -6px 0 0; font-family: var(--font-display); font-size: 19px; color: var(--ink-soft); }
 .share-title:empty { display: none; }
-.share-p, .gate-why { margin: 0; font-size: 17px; line-height: 1.45; }
+.share-p { margin: 0; font-size: 17px; line-height: 1.45; }
 #share-off, #share-on { display: flex; flex-direction: column; gap: 14px; }
 #share-off[hidden], #share-on[hidden] { display: none; }
 #share-off .btn { align-self: flex-start; }
@@ -116,16 +114,6 @@ dialog.share::backdrop, dialog.gate::backdrop { background: color-mix(in srgb, v
 .share-stop { align-self: flex-start; min-height: 36px; font-size: 15px; color: var(--ink-soft); text-decoration: underline; text-underline-offset: 3px; }
 .share-stop:hover { color: var(--ink); }
 
-/* ---------- the grown-up gate (hosted: parent password again) ---------- */
-.gate-field { display: flex; flex-direction: column; gap: 6px; font-size: 15px; font-weight: 700; }
-.gate-field input { height: 50px; padding: 0 14px; border: 0; border-radius: var(--radius); background: var(--surface-2); font-size: 18px; font-weight: 400; color: var(--ink); }
-.gate-field input:focus { outline: 3px solid var(--accent); outline-offset: 0; }
-.gate-err { margin: -4px 0 0; color: color-mix(in srgb, #c0392b 80%, var(--ink)); font-size: 15px; }
-.gate-act { display: flex; justify-content: flex-end; gap: 10px; }
-.gate-btn { min-height: 46px; padding: 0 18px; border-radius: var(--radius); font-size: 16px; font-weight: 700; background: var(--surface-2); color: var(--ink); }
-.gate-btn.primary { background: var(--accent); color: var(--on-accent); }
-.gate-btn:disabled { opacity: .6; }
-
 /* ---------- the printing press is resting ---------- */
 .press-note {
   position: fixed; z-index: 30; left: 50%; bottom: 16px; transform: translateX(-50%);
@@ -138,6 +126,7 @@ dialog.share::backdrop, dialog.gate::backdrop { background: color-mix(in srgb, v
 .press-ico svg { stroke-width: 1.8; }
 .press-note .x { flex: none; align-self: flex-start; width: 40px; height: 40px; margin: -6px -8px -6px auto; border-radius: 50%; display: grid; place-items: center; font-size: 18px; color: var(--ink-soft); }
 .press-note .x:hover { background: var(--surface-2); color: var(--ink); }
+.press-go { display: inline-block; margin-top: 4px; font-weight: 700; color: var(--ink); text-underline-offset: 3px; }
 #app[data-screen="lock"] .press-note, #app[data-screen="boot"] .press-note, #app[data-screen="writers"] .press-note { display: none; }
 #app[data-screen="desk"] .press-note { bottom: auto; top: calc(var(--top-h) + 6px); }
 #app[data-screen="desk"][data-step="read"] .press-note { top: auto; bottom: 86px; }

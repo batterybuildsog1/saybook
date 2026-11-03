@@ -8,83 +8,100 @@
 <link rel="stylesheet" href="/grown.css">
 </head>
 <body>
-<header class="bar"><a class="mark" href="/" data-app-name>Saybook</a><nav><button type="button" id="open-app"><span>Open <span data-app-name>Saybook</span></span></button><button type="button" id="signout">Sign out</button></nav></header>
-<main class="wrap" id="main" aria-live="polite">
-  <section class="sheet" id="loading"><p class="soft">Opening your account…</p></section>
+<header class="bar"><a class="mark" href="/" data-app-name>Saybook</a><nav id="nav"><span class="who" id="who"></span><button type="button" id="open-app"><span>Open <span data-app-name>Saybook</span></span></button><button type="button" id="signout">Sign out</button></nav></header>
+<main class="wrap acct" id="main" aria-live="polite">
+  <!-- The library card: the family's books, each stamped once its pages form. The stub holds the money: free books
+       left (a quiet Plans link), the plan choice once they're made, or the plan. -->
+  <section class="slip lcard" id="card" hidden aria-labelledby="books-h">
+    <div class="slip-main">
+      <h1 id="books-h">Your library card</h1>
+      <p class="lede" id="card-say"></p>
+      <ul class="ledger" id="library" aria-label="Your family’s books"></ul>
+      <p class="empty" id="library-empty" hidden>No books yet.</p>
+      <p class="err" role="alert" hidden id="library-err"></p>
 
-  <section class="sheet" id="locked" hidden>
-    <h1>Grown-ups only</h1>
-    <p>Enter the parent password to see the account.</p>
-    <button class="btn" type="button" id="unlock">Enter password</button>
+    </div>
+    <p class="diy" id="diy" hidden>Or run your own copy. <span data-app-name>Saybook</span> is free and open source; it runs on your own API key, and one OpenAI key is enough. <a data-repo>Get the code</a></p>
+    <div class="stub">
+      <div class="sheet" id="books-sec" hidden>
+        <p class="stub-x" id="books-say"></p>
+        <button class="quiet" type="button" id="show-plans">Plans</button>
+        <form id="plan-form" hidden novalidate>
+          <fieldset class="plans">
+            <legend>Pick a plan</legend>
+            <label class="plan"><input type="radio" name="plan" value="annual" checked><span class="pn">Yearly</span><span class="pp" data-plan-price="annual">$140.40</span><span class="pd">a year, <span data-plan-month="annual">$11.70</span> a month</span></label>
+            <label class="plan"><input type="radio" name="plan" value="monthly"><span class="pn">Monthly</span><span class="pp" data-plan-price="monthly">$19.50</span><span class="pd">a month</span></label>
+          </fieldset>
+          <p class="terms" id="plan-terms"></p>
+          <button class="stub-act" type="submit" id="checkout">Continue to payment</button>
+          <p class="small" id="plan-small">Sold by <span data-seller>HVAC Calc LLC</span>.</p>
+          <p class="err" role="alert" hidden id="plan-err"></p>
+        </form>
+      </div>
+      <div class="sheet" id="plan-sec" hidden aria-labelledby="plan-h">
+        <h2 id="plan-h">Your plan</h2>
+        <dl class="kv" id="plan-kv"></dl>
+        <p class="small" id="comp-note" hidden>Your plan is complimentary; there’s nothing to bill.</p>
+        <button class="stub-act" type="button" id="portal">Change plan or billing</button>
+        <p class="small" id="switch-note">Switching to yearly starts now, with credit for the unused part of the month. Switching to monthly starts when the paid year ends.</p>
+        <p class="small" id="seller-note">Sold by <span data-seller>HVAC Calc LLC</span>. <a href="/legal/refunds">Refund policy</a></p>
+      </div>
+    </div>
   </section>
 
-  <!-- Before the first payment: the plan, and what paying also does -->
-  <section class="sheet" id="start" hidden aria-labelledby="start-h">
-    <h1 id="start-h">Start your plan</h1>
-    <p class="lede"><b data-price>$19.50</b> a month, for the whole family.</p>
-    <ul class="lines" id="includes"></ul>
-    <p id="paint-note">Pictures can take a few minutes to paint, longer when lots of families are writing. Kids keep writing while they paint, and they appear on their own.</p>
-    <p class="note">Paying also confirms you’re the parent or guardian. There’s no separate charge for that. Until it’s done, kids can’t write, record or save anything.</p>
-    <div class="row"><button class="btn" type="button" id="checkout">Continue to payment</button><span class="soft small">Cancel any time. Sold by <span data-seller>HVAC Calc LLC</span>.</span></div>
-    <p class="err" role="alert" hidden id="start-err" style="margin-top:14px"></p>
+  <div class="panels" id="panels" hidden>
+      <section class="sheet" id="writers-sec" aria-labelledby="writers-h">
+        <h2 id="writers-h">Writers</h2>
+        <p class="soft" id="writers-p">Each writer gets a shelf. A first name or a nickname is plenty.</p>
+        <ul class="writers" id="writers"></ul>
+        <form class="addw" id="addw" autocomplete="off">
+          <input name="name" maxlength="24" placeholder="First name or nickname" aria-label="New writer" autocapitalize="words">
+          <button class="btn" type="submit">Add writer</button>
+        </form>
+        <p class="err" role="alert" hidden id="writers-err" style="margin-top:14px"></p>
+        <div class="row foot-act" id="to-studio-row" hidden><button class="btn" type="button" id="to-studio"><span>Open <span data-app-name>Saybook</span></span></button></div>
+      </section>
+      <section class="sheet" id="month-sec" hidden aria-labelledby="month-h">
+        <h2 id="month-h">This month</h2>
+        <p id="month-say"></p>
+        <div class="meter" id="meter" role="meter" aria-labelledby="month-h" aria-valuemin="0" aria-valuemax="100"><i></i></div>
+        <p class="soft small" id="month-note"></p>
+      </section>
+      <section class="sheet" id="data-sec" aria-labelledby="data-h">
+        <h2 id="data-h">Your family’s data</h2>
+        <p>Download every book, picture and recording, or delete the account and everything in it.</p>
+        <div class="row foot-act"><button class="btn quiet" type="button" id="export">Download everything</button><button class="btn quiet" type="button" id="delete">Delete account</button></div>
+        <form id="del-form" hidden style="margin-top:20px">
+          <p class="err">This deletes every writer, book, picture and recording, and cancels any plan. It can’t be undone.</p>
+          <label class="field"><span>Type DELETE to confirm</span><input name="confirm" autocomplete="off" spellcheck="false"></label>
+          <div class="row"><button class="btn danger" type="submit">Delete everything</button><button class="link" type="button" id="del-cancel">Keep my account</button></div>
+        </form>
+        <p class="err" role="alert" hidden id="data-err" style="margin-top:14px"></p>
+      </section>
+      <section class="sheet" id="rec-sec" aria-labelledby="rec-h">
+        <h2 id="rec-h">Recordings</h2>
+        <p>“Read it to me” lets a writer record themselves reading their book, so it plays in their own voice. It’s off until you turn it on. Talking to write is never kept.</p>
+        <label class="check"><input type="checkbox" id="rec"><span>Keep “Read it to me” recordings with the books</span></label>
+        <p class="soft small" id="rec-say"></p>
+      </section>
+  </div>
+
+  <section class="sheet" id="loading"><p class="soft">Opening your account…</p></section>
+
+  <section class="sheet" id="load-err" hidden>
+    <h1>The account didn’t open</h1>
+    <p id="load-err-p">Something went wrong.</p>
+    <button class="btn" type="button" id="retry">Try again</button>
   </section>
 
   <section class="sheet" id="confirming" hidden>
-    <h1>Confirming your payment</h1>
-    <p class="soft" id="confirming-p">This usually takes a few seconds.</p>
+    <h1>Confirming your plan</h1>
+    <p class="soft" id="confirming-p">This usually takes under a minute.</p>
   </section>
 
-  <section class="sheet" id="writers-sec" hidden aria-labelledby="writers-h">
-    <h2 id="writers-h">Writers</h2>
-    <p class="soft" id="writers-p">Each writer gets a shelf. A first name or a nickname is plenty.</p>
-    <ul class="writers" id="writers"></ul>
-    <form class="addw" id="addw" autocomplete="off">
-      <input name="name" maxlength="24" placeholder="First name or nickname" aria-label="New writer" autocapitalize="words">
-      <button class="btn" type="submit">Add writer</button>
-    </form>
-    <p class="err" role="alert" hidden id="writers-err" style="margin-top:14px"></p>
-    <div class="row" style="margin-top:20px" id="to-studio-row" hidden><button class="btn" type="button" id="to-studio"><span>Open <span data-app-name>Saybook</span></span></button></div>
-  </section>
-
-  <section class="sheet" id="month-sec" hidden aria-labelledby="month-h">
-    <h2 id="month-h">This month</h2>
-    <p id="month-say"></p>
-    <div class="meter" id="meter" role="meter" aria-labelledby="month-h" aria-valuemin="0" aria-valuemax="100"><i></i></div>
-    <dl class="kv" id="month-kv"></dl>
-    <p class="soft small" id="month-reset"></p>
-  </section>
-
-  <section class="sheet" id="plan-sec" hidden aria-labelledby="plan-h">
-    <h2 id="plan-h">Plan and billing</h2>
-    <dl class="kv" id="plan-kv"></dl>
-    <div class="row"><button class="btn quiet" type="button" id="portal">Billing and invoices</button></div>
-    <p class="soft small" style="margin-top:14px">Sold by <span data-seller>HVAC Calc LLC</span>. Payments are handled by Stripe.</p>
-  </section>
-
-  <section class="sheet" id="rec-sec" hidden aria-labelledby="rec-h">
-    <h2 id="rec-h">Recordings</h2>
-    <p>“Read it to me” lets a writer record themselves reading their book, so it plays in their own voice. It’s off until you turn it on. Talking to write is never kept.</p>
-    <label class="check"><input type="checkbox" id="rec"><span>Keep “Read it to me” recordings with the books</span></label>
-    <p class="soft small" id="rec-say"></p>
-  </section>
-
-
-
-  <section class="sheet" id="data-sec" hidden aria-labelledby="data-h">
-    <h2 id="data-h">Your family’s data</h2>
-    <p>Download every book, picture and recording, or delete the account and everything in it.</p>
-    <div class="row"><button class="btn quiet" type="button" id="export">Download everything</button><button class="btn quiet" type="button" id="delete">Delete account</button></div>
-    <form id="del-form" hidden style="margin-top:20px">
-      <p class="err" style="background:#f3d9d2">This deletes every writer, book, picture and recording, and cancels the plan. It can’t be undone.</p>
-      <label class="field"><span>Type DELETE to confirm</span><input name="confirm" autocomplete="off" spellcheck="false"></label>
-      <div class="row"><button class="btn danger" type="submit">Delete everything</button><button class="link" type="button" id="del-cancel">Keep my account</button></div>
-    </form>
-    <p class="err" role="alert" hidden id="data-err" style="margin-top:14px"></p>
-  </section>
-
-  <section class="sheet" id="gone" hidden><h1>Account deleted</h1><p>Everything is gone and the plan is cancelled.</p><a class="btn" href="/home/">Done</a></section>
+  <section class="sheet" id="gone" hidden><h1>Account deleted</h1><p>Everything is gone, and any plan is cancelled.</p><a class="btn" href="/home/">Done</a></section>
 </main>
-<footer class="foot"><span><span data-app-name>Saybook</span> is sold by <span data-seller>HVAC Calc LLC</span>.</span><a href="/legal/privacy">Privacy</a><a href="/legal/terms">Terms</a><a href="/legal/parents">Notice to parents</a><p>Questions? <a href="mailto:support@saybook.app">support@saybook.app</a> · <a href="/contact/">Contact us</a></p>
+<footer class="foot"><a href="/legal/privacy">Privacy</a><a href="/legal/terms">Terms</a><a href="/legal/parents">Notice to parents</a><a href="/contact/">Contact us</a><a href="mailto:support@saybook.app">support@saybook.app</a><span class="seller">© 2026 <span data-seller>HVAC Calc LLC</span></span>
 <div data-analytics-choice hidden></div>
 </footer>
 <script type="module" src="/account/account.js"></script>

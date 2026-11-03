@@ -6,21 +6,24 @@
 .rd { position: absolute; inset: 0; overflow: hidden; background: var(--surface); color: var(--ink); --settle: cubic-bezier(.2, .8, .25, 1); }
 .rd-stage { position: absolute; inset: 0; }
 .rd-scr { position: absolute; inset: 0; overflow: hidden; background: var(--surface); }
-.rd-pic { margin: 0; position: relative; min-width: 0; min-height: 0; overflow: hidden; background: var(--surface-2); }
-.rd-pic img { display: block; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity .5s ease; }
-.rd-pic img.ready { opacity: 1; }
-.rd-pic img.develop { animation: develop 2.4s ease-out both; }
-.rd-pic > .sketch { width: 100%; height: 100%; aspect-ratio: auto; border: 0; border-radius: 0; font-size: 17px; }
+.rd-pic { margin: 0; position: relative; min-width: 0; min-height: 0; overflow: hidden; display: grid; place-items: center; padding: var(--pm, 0px); }
+/* The picture is always whole, at its own shape, on the page (contain, never cover): a crop cut the characters' heads
+   and feet (2026-11-02). read.js sizes the picture's area so it is as big as the words allow. */
+.rd-pic > img { display: block; width: 100%; height: 100%; object-fit: contain; opacity: 0; transition: opacity .5s ease; }
+.rd-pic > img.ready { opacity: 1; }
+.rd-pic > img.develop { animation: develop 2.4s ease-out both; }
+.rd-pic > .sketch { width: var(--iw, 100%); height: var(--ih, 100%); max-width: 100%; max-height: 100%; aspect-ratio: auto; border: 0; border-radius: 0; font-size: 17px; }
+.rd-pg .rd-pic { cursor: zoom-in; }
 
 /* the words */
 .rd-txt { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; padding: var(--padt, 30px) var(--padx, 30px) var(--padb, 44px); }
 .rd-txt.scrolls { overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; -webkit-mask-image: linear-gradient(#000 calc(100% - var(--padb, 44px) - 1.5em), transparent calc(100% - var(--padb, 44px) + 4px)); mask-image: linear-gradient(#000 calc(100% - var(--padb, 44px) - 1.5em), transparent calc(100% - var(--padb, 44px) + 4px)); }
 .rd-txt.scrolls::-webkit-scrollbar { display: none; }
-.rd-flow { width: 100%; max-width: var(--cw, 32em); margin-block: auto; font-family: var(--font-body); font-size: 20px; line-height: 1.5; text-wrap: pretty; overflow-wrap: break-word; column-gap: 44px; }
+.rd-flow { width: 100%; max-width: var(--cw, 32em); margin-block: auto; font-family: var(--font-body); font-size: 20px; line-height: 1.5; text-wrap: pretty; overflow-wrap: break-word; }
 .rd-txt.scrolls .rd-flow { margin-top: 0; padding-bottom: 40%; }
 .rd-flow p { margin: 0 0 .6em; }
 .rd-flow p:last-child { margin-bottom: 0; }
-.rd-ch { margin: 0 0 .55em; font-family: var(--font-display); font-weight: 400; font-size: 1.3em; line-height: 1.08; text-wrap: balance; break-after: avoid; }
+.rd-ch { margin: 0 0 .55em; font-family: var(--font-display); font-weight: 400; font-size: 1.3em; line-height: 1.08; text-wrap: balance; }
 .rd-ch small { display: block; margin-bottom: .4em; font-family: var(--font-body); font-size: .48em; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-soft); }
 .rd-flow .w { border-radius: .2em; padding: .02em .07em; margin: 0 -.07em; cursor: pointer; transition: background-color .12s ease, color .12s ease; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
 .rd-flow .w.now, .rd-line .w.now { background: var(--accent-2); color: var(--on-accent); }
@@ -38,10 +41,11 @@
 .rd-go { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; margin-top: 14px; }
 .rd-hint { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; font-size: 16px; color: var(--ink-soft); }
 .rd-cost { margin: 18px 0 0; font-size: 13px; font-style: italic; color: var(--ink-soft); }
-.rd-lineup { display: grid; grid-template-columns: repeat(var(--n, 3), minmax(0, 1fr)); background: var(--surface-2); }
-.rd-lineup figure { position: relative; margin: 0; overflow: hidden; }
-.rd-lineup img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; }
-.rd-lineup figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 26px 8px 8px; font-family: var(--font-display); font-size: clamp(12px, 2.2vh, 20px); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: linear-gradient(transparent, rgba(0, 0, 0, .55)); }
+/* The end: everyone in the story, whole, standing in a row with their names under them. */
+.rd-pic.rd-lineup { --lm: max(var(--pm, 0px), 14px); --cap: clamp(13px, 2.2vh, 20px); display: flex; flex-wrap: wrap; align-content: center; align-items: flex-end; justify-content: center; gap: 0 clamp(6px, 1.2vw, 18px); padding: var(--lm); }
+.rd-lineup figure { flex: 1 1 0; min-width: 0; max-width: 260px; margin: 0; display: grid; justify-items: center; gap: 4px; }
+.rd-lineup img { display: block; width: 100%; height: auto; max-height: calc(var(--ph) - 2 * var(--lm) - var(--cap) * 1.6); object-fit: contain; }
+.rd-lineup figcaption { max-width: 100%; font-family: var(--font-display); font-size: var(--cap); line-height: 1.2; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- chrome (shared) ---------- */
 .rd-chrome { transition: opacity .4s ease, transform .4s ease; }
@@ -97,9 +101,6 @@
 /* ================= B · Full-screen pages ================= */
 .rd[data-skin="b"][data-mode="side"] .rd-scr { display: grid; grid-template-columns: var(--pw) minmax(0, 1fr); }
 .rd[data-skin="b"][data-mode="band"] .rd-scr { display: grid; grid-template-rows: var(--ph) minmax(0, 1fr); }
-.rd[data-skin="b"][data-mode="band"] .rd-pic img { object-position: 50% 30%; }
-.rd[data-skin="b"][data-mode="band"] .rd-txt .rd-flow { column-count: var(--cols, 1); }
-.rd[data-skin="b"]:not([data-crop="none"]) .rd-pg .rd-pic { cursor: zoom-in; }
 .rd[data-skin="b"] .rd-ctl .rd-prev svg, .rd[data-skin="b"] .rd-ctl .rd-next svg { transform: rotate(90deg); }
 .rd[data-skin="b"] .rd-where { display: none; }
 .rd[data-skin="b"][data-mode="side"] .rd-top { right: calc(100% - var(--pw) + 12px); }
@@ -118,8 +119,6 @@
 .rd[data-skin="a"][data-mode="spread"] .rd-scr::after { content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 7%; transform: translateX(-50%); pointer-events: none; z-index: 3; mix-blend-mode: multiply; background: linear-gradient(90deg, transparent, rgba(30, 30, 20, .07) 38%, rgba(30, 30, 20, .2) 50%, rgba(30, 30, 20, .07) 62%, transparent); }
 .theme-night-sky-lanterns .rd[data-skin="a"][data-mode="spread"] .rd-scr::after { mix-blend-mode: normal; background: linear-gradient(90deg, transparent, rgba(0, 0, 0, .18) 40%, rgba(0, 0, 0, .38) 50%, rgba(0, 0, 0, .18) 60%, transparent); }
 .rd[data-skin="a"][data-mode="single"] .rd-scr { display: grid; grid-template-rows: var(--ph) minmax(0, 1fr); }
-.rd[data-skin="a"] .rd-pic img { object-position: 50% 45%; }
-.rd[data-skin="a"] .rd-pg .rd-pic { cursor: zoom-in; }
 .rd[data-skin="a"] .rd-folio { bottom: calc(var(--padt, 30px) * .4); font-size: 13px; }
 .rd[data-skin="a"] .rd-folio b { font-size: 15px; }
 .rd[data-skin="a"] .rd-flow .w.said { color: var(--ink); }
@@ -144,12 +143,13 @@
 /* ================= C · Story theater ================= */
 .rd[data-skin="c"] { --fade: clamp(44px, 11vh, 100px); --band: linear-gradient(to top, var(--surface) 0, var(--surface) calc(100% - var(--fade)), color-mix(in srgb, var(--surface) 80%, transparent) calc(100% - var(--fade) * .6), color-mix(in srgb, var(--surface) 30%, transparent) calc(100% - var(--fade) * .25), transparent 100%); }
 .rd[data-skin="c"] .rd-pic { position: absolute; top: 0; left: 0; bottom: 0; right: var(--sheet-w); transition: right .6s var(--settle), height .6s var(--settle); }
-.rd[data-skin="c"] .rd-pic img { object-position: 50% 32%; }
+.rd[data-skin="c"][data-view="theater"] .rd-pg .rd-pic, .rd[data-skin="c"] .rd-cover .rd-pic { padding: 0; }
+/* the theater (and its cover) fills the screen with the picture: there, and only there, the edges may go */
+.rd[data-skin="c"][data-view="theater"] .rd-pg .rd-pic > img, .rd[data-skin="c"] .rd-cover .rd-pic > img { object-fit: cover; object-position: 50% 32%; }
 .rd[data-skin="c"] .rd-txt { position: absolute; top: 0; right: 0; bottom: 0; width: var(--sheet-w); transition: transform .6s var(--settle), opacity .4s ease; }
 .rd[data-skin="c"][data-mode="band"] .rd-pic { right: 0; bottom: auto; height: var(--ph); }
 .rd[data-skin="c"][data-mode="band"] .rd-txt { top: var(--ph); left: 0; width: auto; }
 .rd[data-skin="c"] .rd-flow .w.said { color: var(--ink); }
-.rd[data-skin="c"] .rd-pg .rd-pic { cursor: zoom-in; }
 .rd[data-skin="c"][data-view="theater"] .rd-pg .rd-pic { right: 0; height: 100%; cursor: pointer; }
 .rd[data-skin="c"][data-view="theater"] .rd-pg .rd-txt { transform: translateX(100%); opacity: 0; pointer-events: none; }
 .rd[data-skin="c"][data-mode="band"][data-view="theater"] .rd-pg .rd-txt { transform: translateY(100%); }
@@ -193,6 +193,9 @@
   .av { width: 30px; height: 30px; }
   .rd-cast { gap: 3px; padding: 3px; }
   .rd-cast .av.away { display: none; } /* a phone shows who is on this page; the others are a page turn away */
+  /* the faces sit just under the desk's header: at the top they were under the Write/Read ribbons, and Book spread's at
+     the foot were under the play button (2026-11-02) */
+  .rd[data-skin="a"] .rd-top, .rd[data-skin="b"] .rd-top { top: calc(var(--top-h) + 6px); bottom: auto; right: 10px; }
   .rd-voice { max-width: 120px; padding: 0 12px 0 10px; }
   .rd[data-skin="c"] .rd-subs { padding-right: 86px; }
   .rd[data-skin="c"] .rd-cover .rd-in, .rd[data-skin="c"] .rd-end .rd-in { grid-template-columns: minmax(0, 1fr); }

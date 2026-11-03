@@ -9,7 +9,7 @@ import { mount as mountWrite } from './write.js';
 import { mountRead, SKINS } from './read.js';
 import { createReader } from './reader.js';
 import { fallback, imgAttrs } from './pic.js';
-import { APP_NAME, SWATCHES, nextSwatch, normWriters, config, limitNote, askParent } from './kit.js';
+import { APP_NAME, SWATCHES, nextSwatch, normWriters, config, limitNote, RESTING, ASK } from './kit.js';
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -42,9 +42,12 @@ const hosted = () => S.cfg && S.cfg.mode === 'hosted';
 /* ---------------- API ---------------- */
 class ApiError extends Error { constructor(msg, status, detail) { super(msg); this.status = status; this.detail = detail; } }
 // The printing press is resting: a quiet note on the shelf and the desk, not a toast that comes and goes.
-function rest(on) {
+// After the five free books (reason free_books_used) the same note asks for a grown-up, with a link to the account.
+function rest(on, reason) {
   S.resting = !!on;
   app.classList.toggle('resting', S.resting);
+  const ask = reason === 'free_books_used', n = ask ? ASK : RESTING;
+  $('#press-h').textContent = n.h + '.'; $('#press-p').textContent = n.p; $('#press-go').hidden = !ask;
   $('#press-note').hidden = !S.resting;
 }
 $('#press-x').onclick = () => { $('#press-note').hidden = true; }; // until the next refused call or reload
@@ -59,21 +62,16 @@ async function api(method, path, body, opt = {}) {
   if (res.status === 401 && path !== '/api/unlock') { lockUp(); throw new ApiError('locked', 401); }
   if (opt.raw && res.status !== 402 && res.status !== 403) return res;
   const data = res.status === 204 ? null : await res.json().catch(() => null);
-  // Hosted: nothing for kids until a parent has finished the first paid checkout (it is also the consent check).
+  // Hosted: the account has no parent consent on record (signup records it; older accounts may not have it).
   if (res.status === 403 && data && data.error === 'parental_consent_required') {
     location.replace('/account/?verify=1');
     throw new ApiError('consent', 403);
   }
-  // Hosted: some grown-up actions ask for the parent password again, then go ahead once.
-  if (res.status === 403 && data && data.error === 'parent_auth' && !opt.gated) {
-    if (await askParent()) return api(method, path, body, { ...opt, gated: true });
-    throw new ApiError('cancelled', 403);
-  }
-  // A paid call the account can't make right now (allowance used, paused, billing): the printing press rests; the
-  // words are always saved. Never retried.
+  // A paid call the account can't make right now (allowance used, paused, the free books made): the printing press
+  // rests or a grown-up is asked for; the words are always saved. Never retried.
   if (res.status === 402 || (res.status === 503 && data && data.error === 'paused')) {
-    rest(true);
-    throw new ApiError(limitNote(), 402, data);
+    rest(true, data && data.reason);
+    throw new ApiError(limitNote(data && data.reason), 402, data);
   }
   if (opt.raw) return res;
   if (!res.ok) throw new ApiError((data && data.error) || 'Something went wrong', res.status, data && data.detail);
@@ -187,11 +185,7 @@ async function boot() {
   if (!S.cfg) { S.cfg = await config(); dress(); }
   try { S.voices = await api('GET', '/api/voices'); }
   catch (e) { if (e.status === 401) return; go('shelf'); toast(e.message, { retry: boot }); return; }
-  if (hosted()) {
-    LS.set('was-in', true);
-    // Entering the studio ends the parent's 15-minute grown-up session, so a kid at the keyboard can't reach it.
-    fetch('/auth/lock-parent', { method: 'POST', credentials: 'same-origin' }).catch(() => {});
-  }
+  if (hosted()) LS.set('was-in', true);
   // Self-host first run: until the providers are connected, the status page says what's missing and the one command
   // that fixes it. "Open anyway" there skips it for this visit.
   if (!hosted() && !sessionStorage.getItem('setup-skip')) {
@@ -250,13 +244,8 @@ function renderWriters() {
     const li = document.createElement('li');
     li.className = 'wf-writer';
     li.style.setProperty('--tag', w.color);
-    li.innerHTML = `<span class="wf-name"></span><button type="button" class="wf-rm" aria-label="Remove"><svg><use href="#i-close"/></svg></button>`;
+    li.innerHTML = `<span class="wf-name"></span>`;
     li.querySelector('.wf-name').textContent = w.name;
-    li.querySelector('.wf-rm').setAttribute('aria-label', `Remove ${w.name}`);
-    li.querySelector('.wf-rm').onclick = async () => {
-      try { await saveWriters(S.writers.filter((x) => x.name !== w.name)); } catch (e) { if (e.status !== 401 && e.status !== 403) toast(e.message); }
-      renderWriters();
-    };
     list.appendChild(li);
   });
   wfColor = nextSwatch(S.writers.map((w) => w.color));
@@ -323,8 +312,8 @@ function renderTags() {
     b.dataset.author = k;
     b.style.setProperty('--tag', w.color);
     b.style.setProperty('--rot', (i % 2 ? -1.5 : 1.5) + 'deg');
-    b.innerHTML = `<span>${esc(k)}</span>` + (k === S.kid && S.writers.length > 1 ? `<span class="rm" role="button" aria-label="Remove ${esc(k)}">✕</span>` : '');
-    b.onclick = (e) => { if (e.target.closest('.rm')) removeKid(k); else pickKid(k); };
+    b.innerHTML = `<span>${esc(k)}</span>`;
+    b.onclick = () => pickKid(k);
     box.appendChild(b);
   });
   const add = document.createElement('button');
@@ -360,13 +349,6 @@ function addKidForm(btn) {
     S.kid = null;
     pickKid(existing || name);
   };
-}
-async function removeKid(k) {
-  if (!confirm(`Take ${k} off the bookcase? Their books stay saved.`)) return;
-  try { await saveWriters(S.writers.filter((w) => w.name !== k)); }
-  catch (err) { if (err.status !== 401 && err.status !== 403) toast(err.message); return; }
-  if (S.kid === k) { S.kid = null; LS.set('kid', null); }
-  loadShelf();
 }
 
 const hash = (s) => [...String(s)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
@@ -510,7 +492,7 @@ async function newStory(fromEl) {
   if (fromEl && !reduce) fromEl.classList.add('pull');
   let st;
   try { st = await api('POST', '/api/stories', { author: S.kid }); }
-  catch (e) { if (fromEl) fromEl.classList.remove('pull'); if (e.status !== 401) toast(e.message, { retry: () => newStory() }); return; }
+  catch (e) { if (fromEl) fromEl.classList.remove('pull'); if (e.status !== 401 && e.status !== 402) toast(e.message, { retry: () => newStory() }); return; }
   window.saybookAnalytics?.capture('story_started', { surface: 'kid', operation: 'story', ok: true });
   showDesk(st, 'write');
 }
@@ -534,6 +516,7 @@ function showDesk(st, step) {
     voices: () => S.voices,
     voice: () => (S.voice && S.voice !== 'own' ? S.voice : (S.voices[0] || {}).id),
     setVoice: (id) => { S.voice = id; },
+    onRead: () => setStep('read'), // "Finish my book" / "Open my book"
   });
   S.read = mountRead($('#read-surface'), st, {
     api, reader: S.reader, player, prime: primeAudio, writer: S.writer, toast, kid: S.kid || st.author, skin: readerSkin(),
@@ -646,8 +629,7 @@ function primeAudio() {
 function stopReading() { if (S.read) S.read.stop(); if (S.writer && S.writer.stopReading) S.writer.stopReading(); }
 
 /* ---------------- share: a read-only link to the book (/b/<token>) ---------------- */
-// Anyone with the link can read the book and hear pages already read aloud; nobody can change it. In the hosted
-// service making or stopping a link asks for the parent password (it shows a child's book outside the family).
+// Anyone with the link can read the book and hear pages already read aloud; nobody can change it.
 const shareDlg = $('#share');
 const shareUrl = (s) => new URL(s.url, location.origin).href;
 function paintShare() {
@@ -688,7 +670,7 @@ async function setShare(on) {
   } catch (e) {
     const msg = e.status === 404 || e.status === 405 ? 'Sharing isn’t switched on for this server yet.'
       : e.detail === 'sharing_consent_required' || e.message === 'sharing_consent_required' ? 'Tick the box to share this book outside the family.'
-      : e.status !== 401 && e.message !== 'cancelled' && e.status !== 402 ? e.message : '';
+      : e.status !== 401 && e.status !== 402 ? e.message : '';
     if (msg) { $('#share-err').textContent = msg; $('#share-err').hidden = !!st.share; if (st.share) toast(msg); }
   }
   $$('#share button').forEach((b) => { b.disabled = false; });

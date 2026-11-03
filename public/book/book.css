@@ -22,8 +22,10 @@ svg .fill { fill: currentColor; stroke: none; }
 
 /* cover: the picture, the title set like a picture book's front */
 .cover { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.15fr 1fr; }
-.cover-pic, .pic { margin: 0; position: relative; overflow: hidden; background: var(--walnut-2); }
-.cover-pic img, .pic img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cover-pic, .pic { margin: 0; position: relative; overflow: hidden; background: var(--paper); }
+/* The picture is whole on its page (contain, never cover): a crop to the column cut about 40% of a 3:2 picture, and the
+   characters at its edges, on a laptop (2026-11-02). */
+.cover-pic img, .pic img { position: absolute; inset: 0; width: 100%; height: 100%; padding: clamp(12px, 2.6vh, 28px); object-fit: contain; }
 .pic.none, .cover-pic.none { background: var(--paper-2); }
 .cover.no-pic { grid-template-columns: 1fr; }
 .cover.no-pic .cover-pic { display: none; }
@@ -39,14 +41,17 @@ svg .fill { fill: currentColor; stroke: none; }
 
 /* a page */
 .spread { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.1fr 1fr; }
-.txt { position: relative; background: var(--paper); color: var(--ink); overflow-y: auto; outline: none; padding: clamp(28px, 4.5vh, 56px) clamp(28px, 4vw, 64px) 56px; }
+.txt { position: relative; display: flex; flex-direction: column; background: var(--paper); color: var(--ink); overflow-y: auto; outline: none; padding: clamp(28px, 4.5vh, 56px) clamp(28px, 4vw, 64px) 56px; }
+/* the words sit in the middle of their page, level with the picture beside them (auto margins: a long page still
+   scrolls from its first line) */
+.txt-in { margin-top: auto; }
 .txt-in { max-width: 34em; font-size: clamp(1.125rem, 0.62rem + 1.5vh, 1.5rem); line-height: 1.6; }
 .txt-in p { margin: 0 0 0.85em; text-indent: 1.4em; }
 .txt-in p:first-child, .txt-in .ch + p { text-indent: 0; }
 .ch { margin: 0 0 0.8em; font: 700 1rem/1.2 var(--f-head); letter-spacing: -0.01em; color: var(--ink-soft); }
 .w { border-radius: 3px; transition: background-color .12s ease; }
 .reading .w.lit { background: var(--lit); box-shadow: 0 0 0 2px var(--lit); }
-.folio { margin: 24px 0 0; text-align: center; font: 500 .875rem/1 var(--f-head); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.folio { margin: 24px 0 auto; text-align: center; font: 500 .875rem/1 var(--f-head); color: var(--ink-soft); font-variant-numeric: tabular-nums; }
 .spread.turn .txt-in, .spread.turn .pic img { animation: settle .45s cubic-bezier(.2, .8, .25, 1) both; }
 .spread.turn .pic img { animation-name: fade; }
 @keyframes settle { from { opacity: 0; transform: translateX(18px); } }
@@ -80,6 +85,7 @@ svg .fill { fill: currentColor; stroke: none; }
   .cover.no-pic { grid-template-rows: 1fr; }
   .cover-words { justify-content: flex-start; gap: 12px; padding: 28px 24px; }
   .txt { padding: 24px 22px 48px; }
+  .txt-in { margin-top: 0; }
 }
 @media (max-width: 560px) {
   :root { --bar-h: 66px; }

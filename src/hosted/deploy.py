@@ -15,10 +15,10 @@ if not re.search(r'^MODE\s*=\s*"hosted"',source,re.M) or re.search(r'^name\s*=\s
 args=['wrangler','deploy','--config',str(config)]
 variables={'HOSTED_TEST_MODE':'false','STRIPE_TEST_FIXTURES':'false'}
 if a.closed:variables['HOSTED_OPEN']='false'
-if a.fixtures:variables.update(HOSTED_TEST_MODE='true',STRIPE_TEST_FIXTURES='true',STRIPE_MODE='test',STRIPE_PRICE_ID='price_fixture_monthly')
+if a.fixtures:variables.update(HOSTED_TEST_MODE='true',STRIPE_TEST_FIXTURES='true',STRIPE_MODE='test',STRIPE_PRICE_ID='price_fixture_monthly',STRIPE_ANNUAL_PRICE_ID='price_fixture_annual')
 if a.stripe_test:
  private=Path.home()/'.config/saybook'
  setup=json.loads((private/'stripe-test-setup.json').read_text())
- variables.update(HOSTED_TEST_MODE='true',STRIPE_TEST_FIXTURES='false',STRIPE_MODE='test',STRIPE_PRICE_ID=setup['price_id'],STRIPE_PORTAL_CONFIGURATION_ID=setup['portal_configuration_id'])
+ variables.update(HOSTED_TEST_MODE='true',STRIPE_TEST_FIXTURES='false',STRIPE_MODE='test',STRIPE_PRICE_ID=setup['price_id'],STRIPE_ANNUAL_PRICE_ID=setup['annual_price_id'],STRIPE_PORTAL_CONFIGURATION_ID=setup['portal_configuration_id'])
 for key,value in variables.items():args.extend(['--var',f'{key}:{value}'])
 raise SystemExit(subprocess.run(args,cwd=root).returncode)
